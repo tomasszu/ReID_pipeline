@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./vehicle_reid_repo/vehicle_reid"
+    ]
+}
