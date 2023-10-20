@@ -58,7 +58,7 @@ model.to(device)
 
 random.seed(0) #420
 
-QUERIED_IMAGE = 0
+QUERIED_IMAGE = 1
 
 
 #Image transforms probably adapted from vehicle Re-ID model code
