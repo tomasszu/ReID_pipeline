@@ -13,7 +13,9 @@ import os
 
 import misc.fisheye_vid_to_pano as toPano
 
-import misc.counting_package.counting_sectors as counting
+import misc.crop as detection_crop
+
+import misc.counting_package.counting_and_crop_list as counting
 
 from tqdm import tqdm
 
@@ -36,6 +38,7 @@ class BYTETrackerArgs:
 MODEL = "yolov8x.pt"
 
 model = YOLO(MODEL)
+
 model.fuse()
 
 confidence_threshold: float = 0.5,
@@ -46,23 +49,17 @@ CLASS_NAMES_DICT = model.model.names
 # class_ids of interest - car, motorcycle, bus and truck
 CLASS_ID = [2, 3, 5, 7]
 
- #line settings
-# LINE_START_1 = sv.Point(1250, 290)
-# LINE_END_1 = sv.Point(1524, 152)
-# LINE_START_2 = sv.Point(1987, 147)
-# LINE_END_2 = sv.Point(2034, 134)
-# LINE_START_3 = sv.Point(548, 205)
-# LINE_END_3 = sv.Point(730, 240)
-# LINE_START_4 = sv.Point(203, 158)
-# LINE_END_4 = sv.Point (337, 149)
-
-# create instance of BoxAnnotator
-# box_annotator = BoxAnnotator(color=ColorPalette(), thickness=1, text_thickness=1, text_scale=1)
-
 video_path = '/home/tomass/tomass/ReID_pipele/source_videos/fisheye_vid_1.mp4'
 TARGET_VIDEO_PATH = f"{HOME}/fisheye-counting-result.mp4"
 
 video = cv2.VideoCapture(video_path)
+
+intersection = "intersection_1"
+
+save_dir = f'../cropped/{intersection}/'
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)
+os.chdir(save_dir)
 
 # tracker = sv.ByteTrack(track_thresh = 0.25, track_buffer = 30, match_thresh = 0.8, frame_rate = 4 )#BYTETrackerArgs())
 tracker = sv.ByteTrack(track_thresh = 0.40, track_buffer = 30, match_thresh = 0.7, frame_rate = 2 )#BYTETrackerArgs())
@@ -86,6 +83,8 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
 
     frame = toPano.fisheye_video_to_pano(frame)
 
+    croppable_detections = []
+
     #results = model()
     results = model(frame)[0]
 
@@ -96,12 +95,6 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
     detections = detections[np.greater(detections.confidence, confidence_threshold)]
 
     detections = tracker.update_with_detections(detections)
-
-    #for detection in detections: print(detection)
-
-    # filtering out detections without trackers
-    #detections = [detection for detection in detections if detection[4] is not None]
-
 
     # format custom labels
     labels = [
@@ -115,10 +108,10 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
         scene=frame.copy(), detections=detections
     )
 
-    ZONE1.trigger(detections=detections)
-    ZONE2.trigger(detections=detections)
-    ZONE3.trigger(detections=detections)
-    ZONE4.trigger(detections=detections)
+    croppable_detections.append(ZONE1.trigger(detections=detections))
+    croppable_detections.append(ZONE2.trigger(detections=detections))
+    croppable_detections.append(ZONE3.trigger(detections=detections))
+    croppable_detections.append(ZONE4.trigger(detections=detections))
 
     annotated_frame = zone_annotator.annotate(
         frame=annotated_frame, zone_counter=ZONE1
@@ -139,20 +132,15 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
     )
 
 
-    # updating line counter
-    #line_counter_1.trigger(detections=detections)
-
-
-    #annotated_labeled_frame = line_annotator.annotate(frame=annotated_labeled_frame, line_counter=line_counter_1)
-
     annotated_labeled_frame = trace_annotator.annotate(
          scene=annotated_labeled_frame,
          detections=detections
     )
-
-    #print(line_counter_1.out_count)
-    # print(f" Curr. count = {ZONE1.triggers.__len__()}")
-    # print(f" Out count = {ZONE1.out_count}")
-
+    for detection in croppable_detections:
+        if(detection):
+            #print(detection[])
+            detection_crop.crop_from_bbox(frame, detection[0][0], detection[0][1])
+    
+    
     cv2.imshow("frame", annotated_labeled_frame)
     cv2.waitKey(0)
