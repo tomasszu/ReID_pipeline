@@ -1,6 +1,7 @@
 {
     "python.analysis.extraPaths": [
         "./vehicle_reid_repo/vehicle_reid",
-        "./counting_workspace/ByteTrack/yolox/models"
+        "./counting_workspace/ByteTrack/yolox/models",
+        "./vehicle_reid_repo"
     ]
 }

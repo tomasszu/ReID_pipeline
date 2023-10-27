@@ -85,6 +85,9 @@ def visualise_main(queried_image, query_folder, gallery_folder):
     f_query = extract_feature(model, X_query).detach().cpu()
     f_gallery = [extract_feature(model, X) for X in X_gallery]
     f_gallery = torch.stack(f_gallery).detach().cpu()
+    #print(f"query features: {f_query}")
+    #print(f"gallery features: {f_gallery}")
+
     scores = get_scores(f_query, f_gallery)
     print(scores)
 

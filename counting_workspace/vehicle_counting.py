@@ -17,6 +17,8 @@ import misc.crop as detection_crop
 
 import misc.counting_package.counting_and_crop_list as counting
 
+import misc.feature_extract as ReID
+
 from tqdm import tqdm
 
 import os
@@ -141,6 +143,9 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
             #print(detection[])
             detection_crop.crop_from_bbox(frame, detection[0][0], detection[0][1])
     
+
+    intersection_folder = "/home/tomass/tomass/ReID_pipele/cropped/" + intersection + "/"
+    ReID.save_extractions(intersection_folder)
     
     cv2.imshow("frame", annotated_labeled_frame)
     cv2.waitKey(0)
