@@ -1,5 +1,6 @@
 import cv2
 import os
+import sys
 
 
 def crop_from_bbox(frame, track_id_name, xyxy):
@@ -9,9 +10,10 @@ def crop_from_bbox(frame, track_id_name, xyxy):
 
     intersection = "intersection_1"
 
-    save_dir = f'../cropped/{intersection}/'
+    file_name = os.path.join(sys.path[0], f'../cropped/{intersection}/' + f'id_{track_id_name}.jpg')
     # os.chdir(save_dir)
     # print(os.listdir(save_dir))
     # print(os.getcwd())
-    print(cv2.imwrite(f'id_{track_id_name}.jpg', cropped_img))
+    if(os.path.exists(file_name) is False):
+        print(cv2.imwrite(file_name, cropped_img))
     #cv2.waitKey(0)

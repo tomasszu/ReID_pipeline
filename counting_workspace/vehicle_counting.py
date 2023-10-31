@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import os
+import sys
 
 import misc.fisheye_vid_to_pano as toPano
 
@@ -17,7 +18,7 @@ import misc.crop as detection_crop
 
 import misc.counting_package.counting_and_crop_list as counting
 
-import misc.feature_extract as ReID
+import misc.feature_extract as fExtract
 
 from tqdm import tqdm
 
@@ -57,11 +58,10 @@ TARGET_VIDEO_PATH = f"{HOME}/fisheye-counting-result.mp4"
 video = cv2.VideoCapture(video_path)
 
 intersection = "intersection_1"
+intersection_folder = os.path.join(sys.path[0], f'../cropped/{intersection}/')
 
-save_dir = f'../cropped/{intersection}/'
-if not os.path.exists(save_dir):
-    os.makedirs(save_dir)
-os.chdir(save_dir)
+if not os.path.exists(intersection_folder):
+    os.makedirs(intersection_folder)
 
 # tracker = sv.ByteTrack(track_thresh = 0.25, track_buffer = 30, match_thresh = 0.8, frame_rate = 4 )#BYTETrackerArgs())
 tracker = sv.ByteTrack(track_thresh = 0.40, track_buffer = 30, match_thresh = 0.7, frame_rate = 2 )#BYTETrackerArgs())
@@ -144,8 +144,9 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
             detection_crop.crop_from_bbox(frame, detection[0][0], detection[0][1])
     
 
-    intersection_folder = "/home/tomass/tomass/ReID_pipele/cropped/" + intersection + "/"
-    ReID.save_extractions(intersection_folder)
+    if(not len(os.listdir(intersection_folder)) == 0):
+        #fExtract.save_extractions_to_CSV(intersection_folder)
+        fExtract.save_extractions_to_vector_db(intersection_folder)
     
     cv2.imshow("frame", annotated_labeled_frame)
     cv2.waitKey(0)
