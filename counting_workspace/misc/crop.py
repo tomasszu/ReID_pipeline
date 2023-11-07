@@ -3,14 +3,12 @@ import os
 import sys
 
 
-def crop_from_bbox(frame, track_id_name, xyxy):
+def crop_from_bbox(frame, track_id_name, xyxy, folder):
     x1, y1, x2, y2 = xyxy[0].astype("int"), xyxy[1].astype("int"), xyxy[2].astype("int"), xyxy[3].astype("int")
     cropped_img = frame[y1:y2, x1:x2]
     #cv2.imshow('image',cropped_img)
 
-    intersection = "intersection_1"
-
-    file_name = os.path.join(sys.path[0], f'../cropped/{intersection}/' + f'id_{track_id_name}.jpg')
+    file_name = os.path.join(sys.path[0], f'../cropped/Sequence1a/{folder}/' + f'id_{track_id_name}.jpg')
     # os.chdir(save_dir)
     # print(os.listdir(save_dir))
     # print(os.getcwd())

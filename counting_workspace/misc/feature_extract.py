@@ -121,7 +121,7 @@ def save_extractions_to_vector_db(folder):
         os.remove(folder + image_name)
         print(f" {image_name} deleted from folder")
 
-    query(np.zeros(512))
+    #query(np.zeros(512))
 
     
 
