@@ -1,4 +1,5 @@
 # Object Detecion 
+import glob
 import cv2
 import supervision as sv
 from ultralytics import YOLO
@@ -11,6 +12,13 @@ import pandas as pd
 import numpy as np
 import os
 import sys
+import re
+
+#Vehivle ReID model
+sys.path.append("vehicle_reid_repo/")
+sys.path.append("..")
+from vehicle_reid.load_model import load_model_from_opts
+import torch
 
 import misc.fisheye_vid_to_pano as toPano
 
@@ -155,16 +163,16 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
     annotated_frame = zone_annotator.annotate(
         frame=annotated_frame, zone_counter=ZONE4
     )
-    
-    for detection in croppable_detections:
-        if(detection):
+    #print(croppable_detections)
+    for detection in croppable_detections: #croppable detections atlauj vienu detection katrai zonai tikai, iteree cauri zonaam
+        if(detection): # ja zonaa ir detection
             #print(detection[])
-            detection_crop.crop_from_bbox(frame, detection[0][0], detection[0][1], intersection)
+            detection_crop.crop_from_bbox(frame, detection[0][0], detection[0][1], intersection) # (frame, vehID, bbox, intersectionNr)
     
 
     if(not len(os.listdir(intersection_folder)) == 0):
         #fExtract.save_extractions_to_CSV(intersection_folder)
-        fExtract.save_extractions_to_vector_db(intersection_folder)
+        fExtract.save_extractions_to_vector_db(intersection_folder, intersection)
 
     cv2.imshow("frame", annotated_frame)
 
@@ -173,16 +181,60 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
     _, frame2 = video2.read()
 
     detections2 = detections_process(model, frame2, tracker2)
+    #print(detections2.xyxy)
+    #print(detections2.tracker_id)
 
-    if(len(detections2) is not 0):
+    annotated_frame2 = frame_annotations(detections2, frame2)
 
-        annotated_frame2 = frame_annotations(detections2, frame2)
+    if(len(detections2.xyxy) != 0):
+        for bbox, id in zip(detections2.xyxy, detections2.tracker_id):
+            detection_crop.crop_from_bbox(frame2, id, bbox, intersection2)
+    
 
-        # <--------------------- ERROR, jasaprot ar ko detections2 / detection atskiras no croppable detections
-        for detection in detections2:
-            if(detection):
-                #print(detection[])
-                detection_crop.crop_from_bbox(frame2, detection[0][0], detection[0][1], intersection2)
+    # EXTRACTIONS TEST FUNKCIJA ----------------------------------------
+    if(not len(os.listdir(intersection_folder2)) == 0):
+    #     #fExtract.save_extractions_to_CSV(intersection_folder)
+    #     #fExtract.save_extractions_to_vector_db(intersection2)
+        from PIL import Image
+        device = "cuda"
+
+        reIdModel = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/net_19.pth", remove_classifier=True)
+        reIdModel.eval()
+        reIdModel.to(device)
+
+        extractables_folder = intersection_folder2
+        extractable_images = os.listdir(extractables_folder)
+
+        images = [Image.open(extractables_folder + x) for x in extractable_images]
+        X_images = torch.stack(tuple(map(fExtract.data_transforms, images))).to(device)
+
+        features = [fExtract.extract_feature(reIdModel, X) for X in X_images]
+        features = torch.stack(features).detach().cpu()
+
+        features_array = np.array(features)
+        compare_array = []
+        for image_name, embedding in zip(extractable_images, features_array):
+            image_id = re.sub(r'[^0-9]', '', image_name)
+            compare_array.append([image_id, embedding])
+            #print(f"{image_id}: {embedding} \n")
+        print("From intersection 2. -> 1. :")
+        for vehicle in compare_array:
+            #print(db.query(vehicle[1],intersection))
+            result = db.query_for_ID(vehicle[1],intersection)
+            if(result != -1):
+                print(f"{vehicle[0]} found as -> {result[0].vehicle_id}")
+
+
+
+        # ŠITO VISU VAJAG PATESTEET TAD !!! --------------------------------->
+
+        #refresh 2. intersection detections
+        images = glob.glob(extractables_folder + '/*')
+        for i in images:
+            os.remove(i)
+        
+    # -------------------------------------------------------------------
+
 
     cv2.imshow("frame2", annotated_frame2)
 

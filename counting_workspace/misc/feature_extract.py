@@ -83,7 +83,7 @@ def save_extractions_to_CSV(folder):
             # COUNTER = COUNTER + 1
         print("Embeddings saved to CSV.")
 
-def save_extractions_to_vector_db(folder):
+def save_extractions_to_vector_db(folder_path, folder_name):
     import numpy as np
     import re
     #from misc.database import Vehicles
@@ -101,7 +101,7 @@ def save_extractions_to_vector_db(folder):
     model.eval()
     model.to(device)
 
-    extractables_folder = folder
+    extractables_folder = folder_path
     extractable_images = os.listdir(extractables_folder)
 
     images = [Image.open(extractables_folder + x) for x in extractable_images]
@@ -112,13 +112,13 @@ def save_extractions_to_vector_db(folder):
 
     features_array = np.array(features)
 
-    create_db._init_()
+    create_db._init_(folder_name)
 
     for image_name, embedding in zip(extractable_images, features_array):
         image_id = re.sub(r'[^0-9]', '', image_name)
-        add_vehicle(image_id, embedding)
+        add_vehicle(image_id, embedding, folder_name)
         print(f" {image_name} Embedding saved to vector_db.")
-        os.remove(folder + image_name)
+        os.remove(folder_path + image_name)
         print(f" {image_name} deleted from folder")
 
     #query(np.zeros(512))
