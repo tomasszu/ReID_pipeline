@@ -164,10 +164,11 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
         frame=annotated_frame, zone_counter=ZONE4
     )
     #print(croppable_detections)
-    for detection in croppable_detections: #croppable detections atlauj vienu detection katrai zonai tikai, iteree cauri zonaam
-        if(detection): # ja zonaa ir detection
+    for zone_detections in croppable_detections: #croppable detections satur detections zonai, iteree cauri zonaam
+        if(zone_detections): # ja zonaa ir detection
             #print(detection[])
-            detection_crop.crop_from_bbox(frame, detection[0][0], detection[0][1], intersection) # (frame, vehID, bbox, intersectionNr)
+            for detection in zone_detections:
+                detection_crop.crop_from_bbox(frame, detection[0], detection[1], intersection) # (frame, vehID, bbox, intersectionNr)
     
 
     if(not len(os.listdir(intersection_folder)) == 0):
@@ -184,7 +185,6 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
     #print(detections2.xyxy)
     #print(detections2.tracker_id)
 
-    annotated_frame2 = frame_annotations(detections2, frame2)
 
     if(len(detections2.xyxy) != 0):
         for bbox, id in zip(detections2.xyxy, detections2.tracker_id):
@@ -218,13 +218,22 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
             compare_array.append([image_id, embedding])
             #print(f"{image_id}: {embedding} \n")
         print("From intersection 2. -> 1. :")
+        track_map = {}
         for vehicle in compare_array:
             #print(db.query(vehicle[1],intersection))
             result = db.query_for_ID(vehicle[1],intersection)
             if(result != -1):
+                track_map[vehicle[0]] = result[0].vehicle_id
                 print(f"{vehicle[0]} found as -> {result[0].vehicle_id}")
 
-
+        print(track_map)
+        #convert 2. frame track id's to 1.st frame detected tracks
+        if(len(track_map) != 0):
+            for i, track in enumerate(detections2.tracker_id):
+                detections2.tracker_id[i] = track_map[str(track)]
+        else:
+            for i, track in enumerate(detections2.tracker_id):
+                detections2.tracker_id[i] = i * (-1)
 
         # ŠITO VISU VAJAG PATESTEET TAD !!! --------------------------------->
 
@@ -235,7 +244,7 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
         
     # -------------------------------------------------------------------
 
-
+    annotated_frame2 = frame_annotations(detections2, frame2)
     cv2.imshow("frame2", annotated_frame2)
 
 

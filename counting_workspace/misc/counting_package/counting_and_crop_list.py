@@ -25,6 +25,7 @@ class countZone:
         self.zone = sv.Rect(x,y,w,h)
         self.tracker_state: Dict[str, bool] = {}
         self.triggers  = []
+        self.const_triggers = []
         #self.in_count: int = 0
         self.out_count: int = 0
 
@@ -61,7 +62,11 @@ class countZone:
                 if(self.triggers.__contains__(tracker_id)):
                     self.out_count = self.out_count+1
                     self.triggers.remove(tracker_id)
-                    crop_detections.append([tracker_id,xyxy])
+                    self.const_triggers.append(tracker_id) # save triggers permanently for use after initial cropping after zone leave
+                    #crop_detections.append([tracker_id,xyxy])
+            if(self.const_triggers.__contains__(tracker_id)):
+                crop_detections.append([tracker_id,xyxy])
+
         return crop_detections
 
 

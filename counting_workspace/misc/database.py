@@ -35,9 +35,12 @@ def query_for_ID(embedding, intersection):
 
   # Perform a search query
   query = Vehicles(text='query', embedding=embedding)
+  alt_query = Vehicles(text='query', vehicle_id='1')
   
   try:
     results = db.search(inputs=DocList[Vehicles]([query]), limit=1)
+    alt_results = db.search(inputs=DocList[Vehicles]([alt_query]), limit=1)
+    print(alt_results)
   except:
     return -1
   
