@@ -29,6 +29,7 @@ import misc.counting_package.counting_and_crop_list as counting
 import misc.feature_extract as fExtract
 
 import misc.database as db
+import misc.lance_db as l_db
 
 from tqdm import tqdm
 
@@ -173,7 +174,8 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
 
     if(not len(os.listdir(intersection_folder)) == 0):
         #fExtract.save_extractions_to_CSV(intersection_folder)
-        fExtract.save_extractions_to_vector_db(intersection_folder, intersection)
+        #fExtract.save_extractions_to_vector_db(intersection_folder, intersection)
+        fExtract.save_extractions_to_lance_db(intersection_folder, intersection)
 
     cv2.imshow("frame", annotated_frame)
 
@@ -219,33 +221,34 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
             #print(f"{image_id}: {embedding} \n")
         print("From intersection 2. -> 1. :")
         track_map = {}
+
         for vehicle in compare_array:
             #print(db.query(vehicle[1],intersection))
-            result = db.query_for_ID(vehicle[1],intersection)
+            result = l_db.query_for_ID(vehicle[1],intersection)
             if(result != -1):
                 track_map[vehicle[0]] = result[0].vehicle_id
                 print(f"{vehicle[0]} found as -> {result[0].vehicle_id}")
 
-        print(track_map)
-        #convert 2. frame track id's to 1.st frame detected tracks
-        if(len(track_map) != 0):
-            for i, track in enumerate(detections2.tracker_id):
-                detections2.tracker_id[i] = track_map[str(track)]
-        else:
-            for i, track in enumerate(detections2.tracker_id):
-                detections2.tracker_id[i] = i * (-1)
+    #     print(track_map)
+    #     #convert 2. frame track id's to 1.st frame detected tracks
+    #     if(len(track_map) != 0):
+    #         for i, track in enumerate(detections2.tracker_id):
+    #             detections2.tracker_id[i] = track_map[str(track)]
+    #     else:
+    #         for i, track in enumerate(detections2.tracker_id):
+    #             detections2.tracker_id[i] = i * (-1)
 
-        # ŠITO VISU VAJAG PATESTEET TAD !!! --------------------------------->
+    #     # ŠITO VISU VAJAG PATESTEET TAD !!! --------------------------------->
 
-        #refresh 2. intersection detections
-        images = glob.glob(extractables_folder + '/*')
-        for i in images:
-            os.remove(i)
+    #     #refresh 2. intersection detections
+    #     images = glob.glob(extractables_folder + '/*')
+    #     for i in images:
+    #         os.remove(i)
         
-    # -------------------------------------------------------------------
+    # # -------------------------------------------------------------------
 
-    annotated_frame2 = frame_annotations(detections2, frame2)
-    cv2.imshow("frame2", annotated_frame2)
+    # annotated_frame2 = frame_annotations(detections2, frame2)
+    # cv2.imshow("frame2", annotated_frame2)
 
 
 

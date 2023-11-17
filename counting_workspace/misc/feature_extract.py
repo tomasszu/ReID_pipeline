@@ -123,5 +123,45 @@ def save_extractions_to_vector_db(folder_path, folder_name):
 
     #query(np.zeros(512))
 
+def save_extractions_to_lance_db(folder_path, folder_name):
+    import numpy as np
+    import re
+    #from misc.database import Vehicles
+    import misc.lance_db_init as create_db
+    from misc.lance_db import add_vehicle
+    from misc.lance_db import query
+
+    from docarray import DocList
+    import numpy as np
+    import lancedb
+
+    device = "cuda"
+
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/net_19.pth", remove_classifier=True)
+    model.eval()
+    model.to(device)
+
+    extractables_folder = folder_path
+    extractable_images = os.listdir(extractables_folder)
+
+    images = [Image.open(extractables_folder + x) for x in extractable_images]
+    X_images = torch.stack(tuple(map(data_transforms, images))).to(device)
+
+    features = [extract_feature(model, X) for X in X_images]
+    features = torch.stack(features).detach().cpu()
+
+    features_array = np.array(features)
+
+    db = create_db._init_(folder_name)
+
+    for image_name, embedding in zip(extractable_images, features_array):
+        image_id = re.sub(r'[^0-9]', '', image_name)
+        add_vehicle(image_id, embedding, folder_name, db)
+        print(f" {image_name} Embedding saved to vector_db.")
+        os.remove(folder_path + image_name)
+        print(f" {image_name} deleted from folder")
+
+    #query(np.zeros(512))
+
     
 
