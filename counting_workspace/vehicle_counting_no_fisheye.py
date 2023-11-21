@@ -24,7 +24,8 @@ import misc.fisheye_vid_to_pano as toPano
 
 import misc.crop as detection_crop
 
-import misc.counting_package.counting_and_crop_list as counting
+#import misc.counting_package.counting_and_crop_list as counting
+import misc.counting_package.counting_and_crop_list_v2 as counting
 
 import misc.feature_extract as fExtract
 
@@ -113,9 +114,9 @@ if not os.path.exists(intersection_folder):
 tracker = sv.ByteTrack(track_thresh = 0.40, track_buffer = 30, match_thresh = 0.7, frame_rate = 20 )#BYTETrackerArgs())
 
 
-ZONE1 = counting.countZone(362, 127, 122, -70)
+ZONE1 = counting.countZone(362, 127, 102, -70)
 ZONE2 = counting.countZone(1, 164, 155, -70)
-ZONE3 = counting.countZone(0, 493, 242, -140)
+ZONE3 = counting.countZone(0, 493, 190, -140)
 ZONE4 = counting.countZone(557, 328, 655, -149)
 
 #------------ INTERSECTION 2 ------------------------------------------------------------
@@ -225,30 +226,35 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
         for vehicle in compare_array:
             #print(db.query(vehicle[1],intersection))
             result = l_db.query_for_ID(vehicle[1],intersection)
-            if(result != -1):
-                track_map[vehicle[0]] = result[0].vehicle_id
-                print(f"{vehicle[0]} found as -> {result[0].vehicle_id}")
+            if(result and result != -1):
+                id = result[0]['vehicle_id']
+                distance = result[0]['_distance']
+                track_map[vehicle[0]] = [id, distance]
+                print(f"{vehicle[0]} found as -> {id} [{distance}%]")
 
     #     print(track_map)
-    #     #convert 2. frame track id's to 1.st frame detected tracks
-    #     if(len(track_map) != 0):
-    #         for i, track in enumerate(detections2.tracker_id):
-    #             detections2.tracker_id[i] = track_map[str(track)]
-    #     else:
-    #         for i, track in enumerate(detections2.tracker_id):
-    #             detections2.tracker_id[i] = i * (-1)
+        #convert 2. frame track id's to 1.st frame detected tracks
+        if(len(track_map) != 0):
+            for i, track in enumerate(detections2.tracker_id):
+                detections2.tracker_id[i] = track_map[str(track)][0]
+                detections2.confidence[i] = track_map[str(track)][1]
+                # JAAARUNO tgd no sakuma un jaskatas
+        else:
+            for i, track in enumerate(detections2.tracker_id):
+                detections2.tracker_id[i] = i * (-1)
+                detections2.confidence[i] = 0.00
 
-    #     # ŠITO VISU VAJAG PATESTEET TAD !!! --------------------------------->
+        # ŠITO VISU VAJAG PATESTEET TAD !!! --------------------------------->
 
-    #     #refresh 2. intersection detections
-    #     images = glob.glob(extractables_folder + '/*')
-    #     for i in images:
-    #         os.remove(i)
+        #refresh 2. intersection detections
+        images = glob.glob(extractables_folder + '/*')
+        for i in images:
+            os.remove(i)
         
     # # -------------------------------------------------------------------
 
-    # annotated_frame2 = frame_annotations(detections2, frame2)
-    # cv2.imshow("frame2", annotated_frame2)
+    annotated_frame2 = frame_annotations(detections2, frame2)
+    cv2.imshow("frame2", annotated_frame2)
 
 
 

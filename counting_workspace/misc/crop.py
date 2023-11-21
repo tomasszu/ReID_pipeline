@@ -18,5 +18,5 @@ def crop_from_bbox(frame, track_id_name, xyxy, folder):
     # print(os.getcwd())
     if(os.path.exists(file_name) is False):
         if(min(x1, y1, x2, y2) > 0):
-            print(cv2.imwrite(file_name, cropped_img))
+            cv2.imwrite(file_name, cropped_img)
     #cv2.waitKey(0)

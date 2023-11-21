@@ -19,5 +19,5 @@ def _init_(folder):
     (f"{folder} table created")
     return db
   except:
-    print(f"{folder} table exists")
+    #print(f"{folder} table exists")
     return db

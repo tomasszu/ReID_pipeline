@@ -129,6 +129,7 @@ def save_extractions_to_lance_db(folder_path, folder_name):
     #from misc.database import Vehicles
     import misc.lance_db_init as create_db
     from misc.lance_db import add_vehicle
+    from misc.lance_db import update_vehicle
     from misc.lance_db import query
 
     from docarray import DocList
@@ -156,7 +157,8 @@ def save_extractions_to_lance_db(folder_path, folder_name):
 
     for image_name, embedding in zip(extractable_images, features_array):
         image_id = re.sub(r'[^0-9]', '', image_name)
-        add_vehicle(image_id, embedding, folder_name, db)
+        #add_vehicle(image_id, embedding, folder_name, db)
+        update_vehicle(image_id, embedding, folder_name, db)
         print(f" {image_name} Embedding saved to vector_db.")
         os.remove(folder_path + image_name)
         print(f" {image_name} deleted from folder")

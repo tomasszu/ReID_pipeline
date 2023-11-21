@@ -22,6 +22,29 @@ def add_vehicle(vehicle_id, embedding, intersection, db):
 
   tbl.add(data=data)
 
+def update_vehicle(vehicle_id, embedding, intersection, db):
+  tbl = db.open_table(intersection)
+
+  df = (tbl.search(np.zeros(512), vector_column_name="vector")
+      .where(f"vehicle_id = '{vehicle_id}'", prefilter=True)
+      .select(["vector", "vehicle_id"])
+      .limit(1)
+      .to_list())
+
+  if(df):
+    if(df[0]['vehicle_id'] == f'{vehicle_id}'):
+      embedding_sum = (embedding + df[0]['vector']) / 2
+      tbl.update(where=f"vehicle_id = '{vehicle_id}'", values={"vector": embedding_sum})
+      print(f"{vehicle_id}. embedding updated")
+    else:
+      add_vehicle(vehicle_id, embedding, intersection, db)
+      print(f"{vehicle_id}. embedding added")
+  else:
+    add_vehicle(vehicle_id, embedding, intersection, db)
+    print(f"{vehicle_id}. embedding added")
+  
+  # print(df)
+
 
 
 def query(embedding, intersection):
@@ -38,17 +61,15 @@ def query(embedding, intersection):
 def query_for_ID(embedding, intersection):
   db = create_db._init_(intersection)
 
-  # !!!!! ----------------------->>>>>>>>>>>> Šiten man vajag table dabuut no db.
-
   # Perform a search query
-  query = Vehicles(text='query', embedding=embedding)
-  alt_query = Vehicles(text='query', vehicle_id='1')
-  
+  tbl = db.open_table(intersection)
+
   try:
-    results = db.search(inputs=DocList[Vehicles]([query]), limit=1)
-    alt_results = db.search(inputs=DocList[Vehicles]([alt_query]), limit=1)
-    print(alt_results)
+    df = tbl.search(embedding) \
+        .limit(1) \
+        .metric("dot") \
+        .to_list()
+    return df
   except:
     return -1
-  
-  return results[0].matches
+
