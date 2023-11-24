@@ -17,7 +17,7 @@ def add_vehicle(vehicle_id, embedding, intersection, db):
   tbl = db.open_table(intersection)
 
   data = [
-      {"vehicle_id": vehicle_id, "vector": embedding},
+      {"vehicle_id": vehicle_id, "vector": embedding, "times_summed": 0},
   ]
 
   tbl.add(data=data)
@@ -27,15 +27,17 @@ def update_vehicle(vehicle_id, embedding, intersection, db):
 
   df = (tbl.search(np.zeros(512), vector_column_name="vector")
       .where(f"vehicle_id = '{vehicle_id}'", prefilter=True)
-      .select(["vector", "vehicle_id"])
+      .select(["vector", "vehicle_id", "times_summed"])
       .limit(1)
       .to_list())
 
   if(df):
     if(df[0]['vehicle_id'] == f'{vehicle_id}'):
-      embedding_sum = (embedding + df[0]['vector']) / 2
-      tbl.update(where=f"vehicle_id = '{vehicle_id}'", values={"vector": embedding_sum})
+      times_summed = df[0]['times_summed'] + 1
+      embedding_sum = (embedding + (np.array(df[0]['vector']) / times_summed)) / (1 + (1 / times_summed))
+      tbl.update(where=f"vehicle_id = '{vehicle_id}'", values={"vector": embedding_sum, "times_summed": times_summed})
       print(f"{vehicle_id}. embedding updated")
+      print(f"1 + {1/times_summed} / {1 + (1 / times_summed)}")
     else:
       add_vehicle(vehicle_id, embedding, intersection, db)
       print(f"{vehicle_id}. embedding added")
@@ -67,7 +69,7 @@ def query_for_ID(embedding, intersection):
   try:
     df = tbl.search(embedding) \
         .limit(1) \
-        .metric("dot") \
+        .metric("l2") \
         .to_list()
     return df
   except:

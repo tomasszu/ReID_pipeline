@@ -9,6 +9,7 @@ SCHEMA = pa.schema(
   [
       pa.field("vehicle_id", pa.string()),
       pa.field("vector", pa.list_(pa.float32(), 512)),
+      pa.field("times_summed", pa.int8()),
   ])
 
 def _init_(folder):

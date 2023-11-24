@@ -2,14 +2,15 @@ import os
 import cv2
 from PIL import Image
 
-sequence_folder = "/home/tomass/Downloads/20140618_Sequence1a/Sequence1a/KAB_SK_4_undist_converted"
+sequence_folder = "/home/tomass/Downloads/archive(3)/Infrastructure/frames"
 sequence_images = sorted(os.listdir(sequence_folder))
 
 os.chdir(sequence_folder)
 
 img_array = []
 
-for x in sequence_images: #can base on number of image in your directory
+for i, x in enumerate(sequence_images): #can base on number of image in your directory
+    if(i > 4500): break
     print("adding: " + x) # use this to append your image into array
 
     img = cv2.imread(x)
