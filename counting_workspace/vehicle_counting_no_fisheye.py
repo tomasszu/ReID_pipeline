@@ -100,7 +100,8 @@ zone_annotator = counting.ZoneAnnotator(thickness=2, text_thickness=2, text_scal
 
 #------------ INTERSECTION 1 ------------------------------------------------------------
 
-video_path = '/home/tomass/tomass/ReID_pipele/source_videos/Multi-view_intersection/drone.mp4'
+#video_path = '/home/tomass/tomass/ReID_pipele/source_videos/Multi-view_intersection/drone.mp4'
+video_path = '/home/tomass/tomass/ReID_pipele/source_videos/Sequence1a/Intersection_1.mp4'
 
 video = cv2.VideoCapture(video_path)
 
@@ -113,15 +114,21 @@ if not os.path.exists(intersection_folder):
 # tracker = sv.ByteTrack(track_thresh = 0.25, track_buffer = 30, match_thresh = 0.8, frame_rate = 4 )#BYTETrackerArgs())
 tracker = sv.ByteTrack(track_thresh = 0.40, track_buffer = 30, match_thresh = 0.7, frame_rate = 20 )#BYTETrackerArgs())
 
-
-ZONE1 = counting.countZone(259, 323, 326, -151)
-ZONE2 = counting.countZone(432, 882, 296, -260)
-ZONE3 = counting.countZone(1385, 611, 445, -183)
-ZONE4 = counting.countZone(1009, 168, 307, -66)
+#Sequernce1a
+ZONE1 = counting.countZone(362, 127, 122, -70)            #<------- Jaapatestee atkal ar veco dataset
+ZONE2 = counting.countZone(1, 164, 155, -70)
+ZONE3 = counting.countZone(0, 493, 242, -140)
+ZONE4 = counting.countZone(557, 328, 655, -149)
+#Multiview intersection
+# ZONE1 = counting.countZone(259, 323, 326, -151)
+# ZONE2 = counting.countZone(432, 882, 296, -260)
+# ZONE3 = counting.countZone(1385, 611, 445, -183)
+# ZONE4 = counting.countZone(1009, 168, 307, -66)
 
 #------------ INTERSECTION 2 ------------------------------------------------------------
 
-video_path2 = '/home/tomass/tomass/ReID_pipele/source_videos/Multi-view_intersection/infrastructure.mp4'
+#video_path2 = '/home/tomass/tomass/ReID_pipele/source_videos/Multi-view_intersection/infrastructure.mp4'
+video_path2 = '/home/tomass/tomass/ReID_pipele/source_videos/Sequence1a/Intersection_2.mp4'
 
 video2 = cv2.VideoCapture(video_path2)
 
@@ -192,6 +199,8 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
 
     if(len(detections2.xyxy) != 0):
         for bbox, id in zip(detections2.xyxy, detections2.tracker_id):
+            if(bbox[0] < 1): bbox[0] = 1
+            if(bbox[1] < 1): bbox[1] = 1
             detection_crop.crop_from_bbox(frame2, id, bbox, intersection2)
     
 
@@ -202,7 +211,7 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
         from PIL import Image
         device = "cuda"
 
-        reIdModel = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/net_19.pth", remove_classifier=True)
+        reIdModel = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/net_1.pth", remove_classifier=True)
         reIdModel.eval()
         reIdModel.to(device)
 
