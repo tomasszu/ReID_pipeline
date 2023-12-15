@@ -153,11 +153,14 @@ def save_extractions_to_lance_db(folder_path, folder_name):
 
     features_array = np.array(features)
 
+    print(f"features_array: {features_array}")
+
     db = create_db._init_(folder_name)
 
     for image_name, embedding in zip(extractable_images, features_array):
         image_id = re.sub(r'[^0-9]', '', image_name)
         #add_vehicle(image_id, embedding, folder_name, db)
+        print(f"embedding: {embedding}")
         update_vehicle(image_id, embedding, folder_name, db)
         print(f" {image_name} Embedding saved to vector_db.")
         os.remove(folder_path + image_name)

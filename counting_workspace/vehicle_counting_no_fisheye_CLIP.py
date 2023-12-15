@@ -19,6 +19,7 @@ sys.path.append("vehicle_reid_repo/")
 sys.path.append("..")
 from vehicle_reid.load_model import load_model_from_opts
 import torch
+import clip
 
 import misc.fisheye_vid_to_pano as toPano
 
@@ -31,11 +32,7 @@ import misc.feature_extract as fExtract
 import misc.feature_extract_CLIP as fExtractCLIP
 
 import misc.database as db
-import misc.lance_db as l_db
-
-from tqdm import tqdm
-
-import os
+import misc.lance_db_CLIP as l_db
 
 def detections_process(model, frame, tracker):
     confidence_threshold = 0.7
@@ -101,8 +98,8 @@ zone_annotator = counting.ZoneAnnotator(thickness=2, text_thickness=2, text_scal
 
 #------------ INTERSECTION 1 ------------------------------------------------------------
 
-#video_path = '/home/tomass/tomass/ReID_pipele/source_videos/Multi-view_intersection/drone.mp4'
-video_path = '/home/tomass/tomass/ReID_pipele/source_videos/Sequence1a/Intersection_1.mp4'
+video_path = '/home/tomass/tomass/ReID_pipele/source_videos/Multi-view_intersection/drone.mp4'
+#video_path = '/home/tomass/tomass/ReID_pipele/source_videos/Sequence1a/Intersection_1.mp4'
 
 video = cv2.VideoCapture(video_path)
 
@@ -116,20 +113,20 @@ if not os.path.exists(intersection_folder):
 tracker = sv.ByteTrack(track_thresh = 0.40, track_buffer = 30, match_thresh = 0.7, frame_rate = 20 )#BYTETrackerArgs())
 
 #Sequernce1a
-ZONE1 = counting.countZone(362, 127, 122, -70)
-ZONE2 = counting.countZone(1, 164, 155, -70)
-ZONE3 = counting.countZone(0, 493, 160, -140)
-ZONE4 = counting.countZone(557, 328, 655, -149)
+# ZONE1 = counting.countZone(362, 127, 122, -70)
+# ZONE2 = counting.countZone(1, 164, 155, -70)
+# ZONE3 = counting.countZone(0, 493, 160, -140)
+# ZONE4 = counting.countZone(557, 328, 655, -149)
 #Multiview intersection
-# ZONE1 = counting.countZone(259, 323, 326, -151)
-# ZONE2 = counting.countZone(432, 882, 296, -260)
-# ZONE3 = counting.countZone(1385, 611, 445, -183)
-# ZONE4 = counting.countZone(1009, 168, 307, -66)
+ZONE1 = counting.countZone(259, 323, 326, -151)
+ZONE2 = counting.countZone(432, 882, 296, -260)
+ZONE3 = counting.countZone(1385, 611, 445, -183)
+ZONE4 = counting.countZone(1009, 168, 307, -66)
 
 #------------ INTERSECTION 2 ------------------------------------------------------------
 
-#video_path2 = '/home/tomass/tomass/ReID_pipele/source_videos/Multi-view_intersection/infrastructure.mp4'
-video_path2 = '/home/tomass/tomass/ReID_pipele/source_videos/Sequence1a/Intersection_2.mp4'
+video_path2 = '/home/tomass/tomass/ReID_pipele/source_videos/Multi-view_intersection/infrastructure.mp4'
+#video_path2 = '/home/tomass/tomass/ReID_pipele/source_videos/Sequence1a/Intersection_2.mp4'
 
 video2 = cv2.VideoCapture(video_path2)
 
@@ -186,8 +183,8 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
         if(not len(os.listdir(intersection_folder)) == 0):
             #fExtract.save_extractions_to_CSV(intersection_folder)
             #fExtract.save_extractions_to_vector_db(intersection_folder, intersection)
-            #fExtractCLIP.save_extractions_to_lance_db(intersection_folder, intersection)
-            fExtract.save_extractions_to_lance_db(intersection_folder, intersection)
+            fExtractCLIP.save_extractions_to_lance_db(intersection_folder, intersection)
+            #fExtract.save_extractions_to_lance_db(intersection_folder, intersection)
 
         resized = cv2.resize(annotated_frame, (1280, 800))
         cv2.imshow("frame", resized)
@@ -213,8 +210,9 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
         #     #fExtract.save_extractions_to_CSV(intersection_folder)
         #     #fExtract.save_extractions_to_vector_db(intersection2)
             from PIL import Image
-            device = "cuda"
+            device = "cuda" if torch.cuda.is_available() else "cpu"
 
+            CLIPmodel, CLIPpreprocess = clip.load("ViT-B/32", device=device)
             reIdModel = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/net_0.pth", remove_classifier=True)
             reIdModel.eval()
             reIdModel.to(device)
@@ -222,34 +220,61 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
             extractables_folder = intersection_folder2
             extractable_images = os.listdir(extractables_folder)
 
-            images = [Image.open(extractables_folder + x) for x in extractable_images]
-            X_images = torch.stack(tuple(map(fExtract.data_transforms, images))).to(device)
+            CLIPimages = [CLIPpreprocess(Image.open(extractables_folder + x)).unsqueeze(0).to(device) for x in extractable_images]
 
-            features = [fExtract.extract_feature(reIdModel, X) for X in X_images]
-            features = torch.stack(features).detach().cpu()
+            ReIDimages = [Image.open(extractables_folder + x) for x in extractable_images]
+            ReIDX_images = torch.stack(tuple(map(fExtract.data_transforms, ReIDimages))).to(device)
 
-            features_array = np.array(features)
+            ReIDfeatures = [fExtract.extract_feature(reIdModel, X) for X in ReIDX_images]
+            ReIDfeatures = torch.stack(ReIDfeatures).detach().cpu()
+
+            with torch.no_grad():
+                CLIPfeatures = [(CLIPmodel.encode_image(i)) for i in CLIPimages]
+                CLIPfeatures = torch.stack(CLIPfeatures).detach().cpu()
+
+            # !!!!!!!!!!!!!!!!!!!!! Te vajadzetu katru atseviski nosoftmaxot utt utvjp turpinaat pierakstos
+
+            CLIPfeatures_array = np.array(CLIPfeatures, dtype=np.float32)[0]
+
+            ReIDfeatures_array = np.array(ReIDfeatures)
+
+            features_array = CLIPfeatures_array + ReIDfeatures_array
+
             compare_array = []
             for image_name, embedding in zip(extractable_images, features_array):
                 image_id = re.sub(r'[^0-9]', '', image_name)
                 compare_array.append([image_id, embedding])
                 #print(f"{image_id}: {embedding} \n")
             print("From intersection 2. -> 1. :")
+
             track_map = {}
 
-            for vehicle in compare_array:
-                #print(db.query(vehicle[1],intersection))
-                result = l_db.query_for_ID(vehicle[1],intersection)
-                if(result and result != -1):
-                    id = result[0]['vehicle_id']
-                    distance = result[0]['_distance']
-                    track_map[vehicle[0]] = [id, distance]
-                    print(f"{vehicle[0]} found as -> {id} [{distance}%]")
+            # for vehicle in compare_array:
+            #     #print(db.query(vehicle[1],intersection))
+            #     result = l_db.query_for_ID(vehicle[1],intersection)
+            #     if(result and result != -1):
+            #         id = result[0]['vehicle_id']
+            #         distance = result[0]['_distance']
+            #         track_map[vehicle[0]] = [id, distance]
+            #         print(f"{vehicle[0]} found as -> {id} [{distance}%]")
+    
 
-        #     print(track_map)
+            for vehicle in compare_array:
+            #print(db.query(vehicle[1],intersection))
+                results = l_db.query_for_ID(vehicle[1],intersection)
+                print("-------------------------------")
+                if(results and results != -1):
+                    track_map[vehicle[0]] = [results[0]['vehicle_id'], results[0]['_distance']]
+                    print(f"{vehicle[0]} found as ->  \n")
+                    for i, result in enumerate(results):
+                        id = result['vehicle_id']
+                        distance = result['_distance']
+                        print(f"{id} [{distance}%]")
+
             #convert 2. frame track id's to 1.st frame detected tracks
             if(len(track_map) != 0):
                 for i, track in enumerate(detections2.tracker_id):
+                    #print(f"tracker_id {detections2.tracker_id[i]} = {track_map[str(track)][0]}")
                     detections2.tracker_id[i] = track_map[str(track)][0]
                     detections2.confidence[i] = track_map[str(track)][1]
                     # JAAARUNO tgd no sakuma un jaskatas
