@@ -5,6 +5,7 @@ import re
 import torch
 import clip
 from torchvision import transforms
+from scipy.special import softmax
 
 from PIL import Image
 
@@ -56,23 +57,25 @@ def save_extractions_to_lance_db(folder_path, folder_name):
     extractables_folder = folder_path
     extractable_images = os.listdir(extractables_folder)
 
-    CLIPimages = [preprocess(Image.open(extractables_folder + x)).unsqueeze(0).to(device) for x in extractable_images]
-
     ReIDimages = [Image.open(extractables_folder + x) for x in extractable_images]
     ReIDX_images = torch.stack(tuple(map(data_transforms, ReIDimages))).to(device)
 
     ReIDfeatures = [extract_feature(model, X) for X in ReIDX_images]
     ReIDfeatures = torch.stack(ReIDfeatures).detach().cpu()
 
+    CLIPimages = [preprocess(Image.open(extractables_folder + x)).unsqueeze(0).to(device) for x in extractable_images]
+
     with torch.no_grad():
         CLIPfeatures = [(CLIPmodel.encode_image(i)) for i in CLIPimages]
-        CLIPfeatures = torch.stack(CLIPfeatures).detach().cpu()
+        CLIPfeatures = torch.stack(CLIPfeatures, 1).detach().cpu()
 
     CLIPfeatures_array = np.array(CLIPfeatures, dtype=np.float32)[0]
 
     ReIDfeatures_array = np.array(ReIDfeatures)
 
-    features_array = CLIPfeatures_array + ReIDfeatures_array
+    features_array = np.append(CLIPfeatures_array, ReIDfeatures_array, 1)
+
+    #features_array = CLIPfeatures_array
 
     db = create_db._init_(folder_name)
 

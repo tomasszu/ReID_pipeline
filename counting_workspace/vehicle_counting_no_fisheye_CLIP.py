@@ -4,9 +4,6 @@ import cv2
 import supervision as sv
 from ultralytics import YOLO
 
-#plots
-import matplotlib.pyplot as plt
-
 #basics
 import pandas as pd
 import numpy as np
@@ -21,8 +18,6 @@ from vehicle_reid.load_model import load_model_from_opts
 import torch
 import clip
 
-import misc.fisheye_vid_to_pano as toPano
-
 import misc.crop as detection_crop
 
 #import misc.counting_package.counting_and_crop_list as counting
@@ -31,8 +26,10 @@ import misc.counting_package.counting_and_crop_list_v2 as counting
 import misc.feature_extract as fExtract
 import misc.feature_extract_CLIP as fExtractCLIP
 
-import misc.database as db
 import misc.lance_db_CLIP as l_db
+
+from scipy.special import softmax
+
 
 def detections_process(model, frame, tracker):
     confidence_threshold = 0.7
@@ -119,9 +116,9 @@ tracker = sv.ByteTrack(track_thresh = 0.40, track_buffer = 30, match_thresh = 0.
 # ZONE4 = counting.countZone(557, 328, 655, -149)
 #Multiview intersection
 ZONE1 = counting.countZone(259, 323, 326, -151)
-ZONE2 = counting.countZone(432, 882, 296, -260)
-ZONE3 = counting.countZone(1385, 611, 445, -183)
-ZONE4 = counting.countZone(1009, 168, 307, -66)
+ZONE2 = counting.countZone(330, 962, 296, -260)
+ZONE3 = counting.countZone(1355, 581, 345, -183)
+ZONE4 = counting.countZone(1109, 168, 307, -66)
 
 #------------ INTERSECTION 2 ------------------------------------------------------------
 
@@ -146,7 +143,8 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
 
     # reading frame from video
     _, frame = video.read()
-    _, frame2 = video2.read()
+    _, frame2 = video2.read()  
+
 
     if(i%3 == 0):
 
@@ -197,14 +195,46 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
         #print(detections2.xyxy)
         #print(detections2.tracker_id)
 
-
         if(len(detections2.xyxy) != 0):
-            for bbox, id in zip(detections2.xyxy, detections2.tracker_id):
-                if(bbox[0] < 1): bbox[0] = 1
-                if(bbox[1] < 1): bbox[1] = 1
-                detection_crop.crop_from_bbox(frame2, id, bbox, intersection2)
+            for i, bbox_and_id in enumerate(zip(detections2.xyxy, detections2.tracker_id)):
+                bbox, id = bbox_and_id
+                #Frame control specifisks Intersection Datasetam
+                #anchor point for the detection bounding box
+                # bbox_anchor = np.array(
+                #     [
+                #         (bbox[0] + bbox[2]) / 2,
+                #         (bbox[1] + bbox[3]) / 2,
+                #     ]
+                # ).transpose()
+                # if(157 < bbox_anchor[0] and 547 > bbox_anchor[0] and 116 < bbox_anchor[1]):
+                #     if(bbox[0] < 1): bbox[0] = 1
+                #     if(bbox[1] < 1): bbox[1] = 1
+                #     detection_crop.crop_from_bbox(frame2, id, bbox, intersection2)
+                # else:
+                #     detections2.tracker_id[i] = 0
+                #     detections2.xyxy[i] = 0
+                #     detections2.mask[i] = False
+                #     detections2.confidence[i] = 0
+                #     detections2.class_id[i] = 0
+                #Frame control specifisks Multiview Datasetam
+                # anchor point for the detection bounding box
+                bbox_anchor = np.array(
+                    [
+                        (bbox[0] + bbox[2]) / 2,
+                        (bbox[1] + bbox[3]) / 2,
+                    ]
+                ).transpose()
+                if(70 < bbox_anchor[0] and 105 < bbox_anchor[1]):
+                    if(bbox[0] < 1): bbox[0] = 1
+                    if(bbox[1] < 1): bbox[1] = 1
+                    detection_crop.crop_from_bbox(frame2, id, bbox, intersection2)
+                else:
+                    detections2.tracker_id[i] = 0
+                    detections2.xyxy[i] = 0
+                    detections2.mask[i] = False
+                    detections2.confidence[i] = 0
+                    detections2.class_id[i] = 0
         
-
         # EXTRACTIONS TEST FUNKCIJA ----------------------------------------
         if(not len(os.listdir(intersection_folder2)) == 0):
         #     #fExtract.save_extractions_to_CSV(intersection_folder)
@@ -213,14 +243,12 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
             device = "cuda" if torch.cuda.is_available() else "cpu"
 
             CLIPmodel, CLIPpreprocess = clip.load("ViT-B/32", device=device)
-            reIdModel = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/net_0.pth", remove_classifier=True)
+            reIdModel = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/net_19.pth", remove_classifier=True)
             reIdModel.eval()
             reIdModel.to(device)
 
             extractables_folder = intersection_folder2
             extractable_images = os.listdir(extractables_folder)
-
-            CLIPimages = [CLIPpreprocess(Image.open(extractables_folder + x)).unsqueeze(0).to(device) for x in extractable_images]
 
             ReIDimages = [Image.open(extractables_folder + x) for x in extractable_images]
             ReIDX_images = torch.stack(tuple(map(fExtract.data_transforms, ReIDimages))).to(device)
@@ -228,17 +256,23 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
             ReIDfeatures = [fExtract.extract_feature(reIdModel, X) for X in ReIDX_images]
             ReIDfeatures = torch.stack(ReIDfeatures).detach().cpu()
 
+            CLIPimages = [CLIPpreprocess(Image.open(extractables_folder + x)).unsqueeze(0).to(device) for x in extractable_images]
+
             with torch.no_grad():
                 CLIPfeatures = [(CLIPmodel.encode_image(i)) for i in CLIPimages]
-                CLIPfeatures = torch.stack(CLIPfeatures).detach().cpu()
-
-            # !!!!!!!!!!!!!!!!!!!!! Te vajadzetu katru atseviski nosoftmaxot utt utvjp turpinaat pierakstos
+                CLIPfeatures = torch.stack(CLIPfeatures, 1).detach().cpu()
+            
+            ReIDfeatures_array = np.array(ReIDfeatures)
+            # print(ReIDfeatures_array.shape)
 
             CLIPfeatures_array = np.array(CLIPfeatures, dtype=np.float32)[0]
+            # print(CLIPfeatures_array.shape)
 
-            ReIDfeatures_array = np.array(ReIDfeatures)
+            features_array = np.append(CLIPfeatures_array, ReIDfeatures_array, 1)
+            #print(features_array.shape)
 
-            features_array = CLIPfeatures_array + ReIDfeatures_array
+            # features_array = CLIPfeatures_array
+            # print(features_array.shape)
 
             compare_array = []
             for image_name, embedding in zip(extractable_images, features_array):
@@ -261,7 +295,7 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
 
             for vehicle in compare_array:
             #print(db.query(vehicle[1],intersection))
-                results = l_db.query_for_ID(vehicle[1],intersection)
+                results = l_db.query_for_IDs(vehicle[1],intersection)
                 print("-------------------------------")
                 if(results and results != -1):
                     track_map[vehicle[0]] = [results[0]['vehicle_id'], results[0]['_distance']]
@@ -275,8 +309,9 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
             if(len(track_map) != 0):
                 for i, track in enumerate(detections2.tracker_id):
                     #print(f"tracker_id {detections2.tracker_id[i]} = {track_map[str(track)][0]}")
-                    detections2.tracker_id[i] = track_map[str(track)][0]
-                    detections2.confidence[i] = track_map[str(track)][1]
+                    if(track != 0):
+                        detections2.tracker_id[i] = track_map[str(track)][0]
+                        detections2.confidence[i] = track_map[str(track)][1]
                     # JAAARUNO tgd no sakuma un jaskatas
             else:
                 for i, track in enumerate(detections2.tracker_id):
@@ -293,7 +328,7 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
         # # -------------------------------------------------------------------
 
         annotated_frame2 = frame_annotations(detections2, frame2)
-        resized = cv2.resize(annotated_frame2, (1280, 800))
+        resized = annotated_frame2 #cv2.resize(annotated_frame2, (1280, 800))
         cv2.imshow("frame2", resized)
 
 
