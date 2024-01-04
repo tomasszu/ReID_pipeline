@@ -28,7 +28,7 @@ class countZone:
         self.const_triggers = {}
         #self.in_count: int = 0
         self.out_count: int = 0
-        self.n = 20
+        self.n = 2000
 
     def trigger(self, detections: sv.Detections):
         """

@@ -16,7 +16,7 @@ def add_vehicle(vehicle_id, embedding, intersection, db):
 def update_vehicle(vehicle_id, embedding, intersection, db):
   tbl = db.open_table(intersection)
 
-  df = (tbl.search(np.zeros(1024, dtype= np.float32), vector_column_name="vector")
+  df = (tbl.search(np.zeros(512, dtype= np.float32), vector_column_name="vector")
       .where(f"vehicle_id = '{vehicle_id}'", prefilter=True)
       .select(["vector", "vehicle_id", "times_summed"])
       .limit(1)
@@ -64,7 +64,7 @@ def query_for_IDs(embedding, intersection):
   try:
     df = tbl.search(embedding) \
         .limit(3) \
-        .metric("L2") \
+        .metric("Cosine") \
         .to_list()
     return df
   except:

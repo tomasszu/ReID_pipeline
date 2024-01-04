@@ -32,7 +32,7 @@ from scipy.special import softmax
 
 
 def detections_process(model, frame, tracker):
-    confidence_threshold = 0.7
+    confidence_threshold = 0.6
 
     #results = model()
     results = model(frame)[0]
@@ -95,8 +95,12 @@ zone_annotator = counting.ZoneAnnotator(thickness=2, text_thickness=2, text_scal
 
 #------------ INTERSECTION 1 ------------------------------------------------------------
 
-video_path = '/home/tomass/tomass/ReID_pipele/source_videos/Multi-view_intersection/drone.mp4'
+#video_path = '/home/tomass/tomass/ReID_pipele/source_videos/Multi-view_intersection/drone.mp4'
 #video_path = '/home/tomass/tomass/ReID_pipele/source_videos/Sequence1a/Intersection_1.mp4'
+video_path = '/home/tomass/tomass/ReID_pipele/source_videos/AI_City_01_Itersection/vdo4.avi'
+
+
+#pameginat ar AI city 1,3,4,5 vid !!!!!!!!!
 
 video = cv2.VideoCapture(video_path)
 
@@ -109,21 +113,24 @@ if not os.path.exists(intersection_folder):
 # tracker = sv.ByteTrack(track_thresh = 0.25, track_buffer = 30, match_thresh = 0.8, frame_rate = 4 )#BYTETrackerArgs())
 tracker = sv.ByteTrack(track_thresh = 0.40, track_buffer = 30, match_thresh = 0.7, frame_rate = 20 )#BYTETrackerArgs())
 
-#Sequernce1a
+#Sequernce1a------------------------------------
 # ZONE1 = counting.countZone(362, 127, 122, -70)
 # ZONE2 = counting.countZone(1, 164, 155, -70)
 # ZONE3 = counting.countZone(0, 493, 160, -140)
 # ZONE4 = counting.countZone(557, 328, 655, -149)
-#Multiview intersection
-ZONE1 = counting.countZone(259, 323, 326, -151)
-ZONE2 = counting.countZone(330, 962, 296, -260)
-ZONE3 = counting.countZone(1355, 581, 345, -183)
-ZONE4 = counting.countZone(1109, 168, 307, -66)
-
+#Multiview intersection-----------------------------
+# ZONE1 = counting.countZone(259, 323, 326, -151)
+# ZONE2 = counting.countZone(330, 962, 296, -260)
+# ZONE3 = counting.countZone(1355, 581, 345, -183)
+# ZONE4 = counting.countZone(1109, 168, 307, -66)
+#AICITY(4)--------------------------------------------
+ZONE1 = counting.countZone(164, 475, 888, -269)
 #------------ INTERSECTION 2 ------------------------------------------------------------
 
-video_path2 = '/home/tomass/tomass/ReID_pipele/source_videos/Multi-view_intersection/infrastructure.mp4'
+#video_path2 = '/home/tomass/tomass/ReID_pipele/source_videos/Multi-view_intersection/infrastructure.mp4'
 #video_path2 = '/home/tomass/tomass/ReID_pipele/source_videos/Sequence1a/Intersection_2.mp4'
+video_path2 = '/home/tomass/tomass/ReID_pipele/source_videos/AI_City_01_Itersection/vdo1.avi'
+
 
 video2 = cv2.VideoCapture(video_path2)
 
@@ -146,30 +153,40 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
     _, frame2 = video2.read()  
 
 
-    if(i%3 == 0):
+    if(i%1 == 0):
 
         detections = detections_process(model, frame, tracker)
 
         croppable_detections = []
+        # croppable_detections.append(ZONE1.trigger(detections=detections))
+        # croppable_detections.append(ZONE2.trigger(detections=detections))
+        # croppable_detections.append(ZONE3.trigger(detections=detections))
+        # croppable_detections.append(ZONE4.trigger(detections=detections))
+
+        # annotated_frame = frame_annotations(detections, frame)
+
+        # annotated_frame = zone_annotator.annotate(
+        #     frame=annotated_frame, zone_counter=ZONE1
+        # )
+        # annotated_frame = zone_annotator.annotate(
+        #     frame=annotated_frame, zone_counter=ZONE2
+        # )
+        # annotated_frame = zone_annotator.annotate(
+        #     frame=annotated_frame, zone_counter=ZONE3
+        # )
+        # annotated_frame = zone_annotator.annotate(
+        #     frame=annotated_frame, zone_counter=ZONE4
+        # )
+
+        #--------AICITY(4) Zones -----------------------------------------
         croppable_detections.append(ZONE1.trigger(detections=detections))
-        croppable_detections.append(ZONE2.trigger(detections=detections))
-        croppable_detections.append(ZONE3.trigger(detections=detections))
-        croppable_detections.append(ZONE4.trigger(detections=detections))
 
         annotated_frame = frame_annotations(detections, frame)
 
         annotated_frame = zone_annotator.annotate(
             frame=annotated_frame, zone_counter=ZONE1
         )
-        annotated_frame = zone_annotator.annotate(
-            frame=annotated_frame, zone_counter=ZONE2
-        )
-        annotated_frame = zone_annotator.annotate(
-            frame=annotated_frame, zone_counter=ZONE3
-        )
-        annotated_frame = zone_annotator.annotate(
-            frame=annotated_frame, zone_counter=ZONE4
-        )
+        #------------------------------------------------------------------
         #print(croppable_detections)
         for zone_detections in croppable_detections: #croppable detections satur detections zonai, iteree cauri zonaam
             if(zone_detections): # ja zonaa ir detection
@@ -184,7 +201,7 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
             fExtractCLIP.save_extractions_to_lance_db(intersection_folder, intersection)
             #fExtract.save_extractions_to_lance_db(intersection_folder, intersection)
 
-        resized = cv2.resize(annotated_frame, (1280, 800))
+        resized = cv2.resize(annotated_frame, (1280, 720))
         cv2.imshow("frame", resized)
 
         # -------------------- INTERSECTION 2 -------------------------
@@ -198,6 +215,23 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
         if(len(detections2.xyxy) != 0):
             for i, bbox_and_id in enumerate(zip(detections2.xyxy, detections2.tracker_id)):
                 bbox, id = bbox_and_id
+                #Frame control specifisks AICity(4) Datasetam
+                bbox_anchor = np.array(
+                    [
+                        (bbox[0] + bbox[2]) / 2,
+                        (bbox[1] + bbox[3]) / 2,
+                    ]
+                ).transpose()
+                if(300 < bbox_anchor[1]):
+                    if(bbox[0] < 1): bbox[0] = 1
+                    if(bbox[1] < 1): bbox[1] = 1
+                    detection_crop.crop_from_bbox(frame2, id, bbox, intersection2)
+                else:
+                    detections2.tracker_id[i] = 0
+                    detections2.xyxy[i] = 0
+                    detections2.mask[i] = False
+                    detections2.confidence[i] = 0
+                    detections2.class_id[i] = 0
                 #Frame control specifisks Intersection Datasetam
                 #anchor point for the detection bounding box
                 # bbox_anchor = np.array(
@@ -218,22 +252,22 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
                 #     detections2.class_id[i] = 0
                 #Frame control specifisks Multiview Datasetam
                 # anchor point for the detection bounding box
-                bbox_anchor = np.array(
-                    [
-                        (bbox[0] + bbox[2]) / 2,
-                        (bbox[1] + bbox[3]) / 2,
-                    ]
-                ).transpose()
-                if(70 < bbox_anchor[0] and 105 < bbox_anchor[1]):
-                    if(bbox[0] < 1): bbox[0] = 1
-                    if(bbox[1] < 1): bbox[1] = 1
-                    detection_crop.crop_from_bbox(frame2, id, bbox, intersection2)
-                else:
-                    detections2.tracker_id[i] = 0
-                    detections2.xyxy[i] = 0
-                    detections2.mask[i] = False
-                    detections2.confidence[i] = 0
-                    detections2.class_id[i] = 0
+                # bbox_anchor = np.array(
+                #     [
+                #         (bbox[0] + bbox[2]) / 2,
+                #         (bbox[1] + bbox[3]) / 2,
+                #     ]
+                # ).transpose()
+                # if(70 < bbox_anchor[0] and 105 < bbox_anchor[1]):
+                #     if(bbox[0] < 1): bbox[0] = 1
+                #     if(bbox[1] < 1): bbox[1] = 1
+                #     detection_crop.crop_from_bbox(frame2, id, bbox, intersection2)
+                # else:
+                #     detections2.tracker_id[i] = 0
+                #     detections2.xyxy[i] = 0
+                #     detections2.mask[i] = False
+                #     detections2.confidence[i] = 0
+                #     detections2.class_id[i] = 0
         
         # EXTRACTIONS TEST FUNKCIJA ----------------------------------------
         if(not len(os.listdir(intersection_folder2)) == 0):
@@ -242,7 +276,7 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
             from PIL import Image
             device = "cuda" if torch.cuda.is_available() else "cpu"
 
-            CLIPmodel, CLIPpreprocess = clip.load("ViT-B/32", device=device)
+            # CLIPmodel, CLIPpreprocess = clip.load("ViT-B/32", device=device)
             reIdModel = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/net_19.pth", remove_classifier=True)
             reIdModel.eval()
             reIdModel.to(device)
@@ -256,22 +290,23 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
             ReIDfeatures = [fExtract.extract_feature(reIdModel, X) for X in ReIDX_images]
             ReIDfeatures = torch.stack(ReIDfeatures).detach().cpu()
 
-            CLIPimages = [CLIPpreprocess(Image.open(extractables_folder + x)).unsqueeze(0).to(device) for x in extractable_images]
+            # CLIPimages = [CLIPpreprocess(Image.open(extractables_folder + x)).unsqueeze(0).to(device) for x in extractable_images]
 
-            with torch.no_grad():
-                CLIPfeatures = [(CLIPmodel.encode_image(i)) for i in CLIPimages]
-                CLIPfeatures = torch.stack(CLIPfeatures, 1).detach().cpu()
+            # with torch.no_grad():
+            #     CLIPfeatures = [(CLIPmodel.encode_image(i)) for i in CLIPimages]
+            #     CLIPfeatures = torch.stack(CLIPfeatures, 1).detach().cpu()
             
             ReIDfeatures_array = np.array(ReIDfeatures)
             # print(ReIDfeatures_array.shape)
 
-            CLIPfeatures_array = np.array(CLIPfeatures, dtype=np.float32)[0]
+            #CLIPfeatures_array = np.array(CLIPfeatures, dtype=np.float32)[0]
             # print(CLIPfeatures_array.shape)
 
-            features_array = np.append(CLIPfeatures_array, ReIDfeatures_array, 1)
+            features_array = ReIDfeatures_array
+            #features_array = fExtractCLIP.z_score_normalize_and_concat(ReIDfeatures_array, CLIPfeatures_array)
             #print(features_array.shape)
 
-            # features_array = CLIPfeatures_array
+            #features_array = softmax(features_array)
             # print(features_array.shape)
 
             compare_array = []
@@ -328,7 +363,7 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
         # # -------------------------------------------------------------------
 
         annotated_frame2 = frame_annotations(detections2, frame2)
-        resized = annotated_frame2 #cv2.resize(annotated_frame2, (1280, 800))
+        resized =  cv2.resize(annotated_frame2, (1280, 720))
         cv2.imshow("frame2", resized)
 
 
