@@ -10,6 +10,7 @@ __pycache__/
 # C extensions
 *.pt
 *.mp4
+*.avi
 
 # Distribution / packaging
 .Python
