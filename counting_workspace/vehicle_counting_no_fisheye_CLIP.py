@@ -124,7 +124,7 @@ tracker = sv.ByteTrack(track_thresh = 0.40, track_buffer = 30, match_thresh = 0.
 # ZONE3 = counting.countZone(1355, 581, 345, -183)
 # ZONE4 = counting.countZone(1109, 168, 307, -66)
 #AICITY(4)--------------------------------------------
-ZONE1 = counting.countZone(164, 475, 888, -269)
+ZONE1 = counting.countZone(294, 475, 698, -229)
 #------------ INTERSECTION 2 ------------------------------------------------------------
 
 #video_path2 = '/home/tomass/tomass/ReID_pipele/source_videos/Multi-view_intersection/infrastructure.mp4'

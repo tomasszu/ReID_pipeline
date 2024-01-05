@@ -266,9 +266,11 @@ class ByteTrack:
             ```
         """
         old_bboxes = detections.xyxy
+        #print("INITIAL DETECTIONS:",old_bboxes)
         tracks = self.update_with_tensors(
             tensors=detections2boxes(detections=detections), masks=detections.mask
         )
+        
         detections = Detections.empty()
         if len(tracks) > 0:
             #Meginam saglabaat originaalaas nodetekteetaas bboxes pirms tracking
@@ -449,6 +451,27 @@ class ByteTrack:
         self.tracked_tracks = [
             t for t in self.tracked_tracks if t.state == TrackState.Tracked
         ]
+        # print("------------- self.tracked_tracks ---------------")
+        # for track in self.tracked_tracks:
+        #     print(track.tlbr)
+        # print("------------- activated_starcks ---------------")
+        # for track in activated_starcks:
+        #     print(track.tlbr)
+        # print("------------- refind_stracks ---------------")
+        # for track in refind_stracks:
+        #     print(track.tlbr)
+        # print("------------- self.lost_tracks ---------------")
+        # for track in self.lost_tracks:
+        #     print(track.tlbr)
+        # print("------------- lost_stracks ---------------")
+        # for track in lost_stracks:
+        #     print(track.tlbr)
+        # print("------------- self.removed_tracks ---------------")
+        # for track in self.removed_tracks:
+        #     print(track.tlbr)
+        # print("------------- removed_stracks ---------------")
+        # for track in removed_stracks:
+        #     print(track.tlbr)
         self.tracked_tracks = joint_tracks(self.tracked_tracks, activated_starcks)
         self.tracked_tracks = joint_tracks(self.tracked_tracks, refind_stracks)
         self.lost_tracks = sub_tracks(self.lost_tracks, self.tracked_tracks)
@@ -461,8 +484,8 @@ class ByteTrack:
         # for t in self.tracked_tracks:
         #     print(t.tlbr)
 
-        output_stracks = [track for track in self.tracked_tracks if track.is_activated]
-
+        #output_stracks = [track for track in self.tracked_tracks if track.is_activated]
+        output_stracks = [track for track in activated_starcks]
         return output_stracks
 
 
