@@ -49,9 +49,6 @@ class LineZone:
                 Point(x=x2, y=y2),
             ]
             triggers = [self.vector.is_in(point=anchor) for anchor in anchors]
-            
-            # print("\n" + str(tracker_id))
-            # print(triggers)
 
             # detection is partially in and partially out
             if len(set(triggers)) == 2:
@@ -70,10 +67,16 @@ class LineZone:
                 continue
 
             self.tracker_state[tracker_id] = tracker_state
-            if tracker_state:
-                self.in_count += 1
-            else:
-                self.out_count += 1
+            print( f"Line: {self.vector.start.x} -> {self.vector.end.x} \
+                \n car bbox x : {max(anchors[0].x,anchors[2].x)} < {+ max(self.vector.end.x,self.vector.start.x)+200} ?? and {min(anchors[0].x,anchors[2].x)}  > {min(self.vector.end.x,self.vector.start.x)-200} ?? \
+                \n or \n \
+                \n car bbox y : {max(anchors[0].y,anchors[1].y)} < {max(self.vector.end.y,self.vector.start.y)+200} ?? and {min(anchors[0].y,anchors[1].y)} > {min(self.vector.end.y,self.vector.start.y)-200} ??")
+            if((max(anchors[0].x,anchors[2].x) < max(self.vector.end.x,self.vector.start.x)+200 and min(anchors[0].x,anchors[2].x) > min(self.vector.end.x,self.vector.start.x)-200)
+                or (max(anchors[0].y,anchors[1].y) < max(self.vector.end.y,self.vector.start.y)+200 and min(anchors[0].y,anchors[1].y) > min(self.vector.end.y,self.vector.start.y)-200)):
+                if tracker_state:
+                    self.in_count += 1
+                else:
+                    self.out_count += 1
 
 
 class LineZoneAnnotator:

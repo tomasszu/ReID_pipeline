@@ -229,7 +229,7 @@ for i in range(int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
                 else:
                     detections2.tracker_id[i] = 0
                     detections2.xyxy[i] = 0
-                    detections2.mask[i] = False
+                    #detections2.mask[i] = False
                     detections2.confidence[i] = 0
                     detections2.class_id[i] = 0
                 #Frame control specifisks Intersection Datasetam

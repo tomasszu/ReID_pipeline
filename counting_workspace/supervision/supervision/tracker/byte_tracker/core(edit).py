@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -7,11 +7,41 @@ from supervision.tracker.byte_tracker import matching
 from supervision.tracker.byte_tracker.basetrack import BaseTrack, TrackState
 from supervision.tracker.byte_tracker.kalman_filter import KalmanFilter
 
+# Manual functions for finding two closest bboxes
+
+def calculate_distance(bbox1, bbox2):
+    # Calculate the center of each bounding box
+    center1 = ((bbox1[0] + bbox1[2]) / 2, (bbox1[1] + bbox1[3]) / 2)
+    center2 = ((bbox2[0] + bbox2[2]) / 2, (bbox2[1] + bbox2[3]) / 2)
+
+    # Calculate the Euclidean distance between the centers
+    distance = ((center1[0] - center2[0])**2 + (center1[1] - center2[1])**2)**0.5
+
+    return distance
+
+def find_closest_bbox(target_bbox, bbox_list):
+    # Initialize variables to store the index and minimum distance
+    min_distance = float('inf')
+    closest_bbox_index = -1
+
+    # Iterate through the list of bounding boxes
+    for i, bbox in enumerate(bbox_list):
+        # Calculate the distance between the target bbox and the current bbox
+        distance = calculate_distance(target_bbox, bbox)
+
+        # Update the minimum distance and index if the current bbox is closer
+        if distance < min_distance:
+            min_distance = distance
+            closest_bbox_index = i
+
+    # Return the index of the closest bounding box
+    return closest_bbox_index
+
 
 class STrack(BaseTrack):
     shared_kalman = KalmanFilter()
 
-    def __init__(self, tlwh, score, class_ids):
+    def __init__(self, tlwh, score, class_ids, mask: Optional[np.array] = None):
         # wait activate
         self._tlwh = np.asarray(tlwh, dtype=np.float32)
         self.kalman_filter = None
@@ -21,6 +51,7 @@ class STrack(BaseTrack):
         self.score = score
         self.class_ids = class_ids
         self.tracklet_len = 0
+        self.mask = mask
 
     def predict(self):
         mean_state = self.mean.copy()
@@ -74,6 +105,7 @@ class STrack(BaseTrack):
         if new_id:
             self.track_id = self.next_id()
         self.score = new_track.score
+        self.mask = new_track.mask
 
     def update(self, new_track, frame_id):
         """
@@ -94,6 +126,8 @@ class STrack(BaseTrack):
         self.is_activated = True
 
         self.score = new_track.score
+
+        self.mask = new_track.mask
 
     @property
     def tlwh(self):
@@ -231,15 +265,24 @@ class ByteTrack:
             ... )
             ```
         """
-
+        old_bboxes = detections.xyxy
+        #print("INITIAL DETECTIONS:",old_bboxes)
         tracks = self.update_with_tensors(
-            tensors=detections2boxes(detections=detections)
+            tensors=detections2boxes(detections=detections), masks=detections.mask
         )
+        
         detections = Detections.empty()
         if len(tracks) > 0:
-            detections.xyxy = np.array(
-                [track.tlbr for track in tracks], dtype=np.float32
-            )
+            #Meginam saglabaat originaalaas nodetekteetaas bboxes pirms tracking
+            #detections.xyxy = old_bboxes
+            new_bboxes = []
+            for track in tracks:
+                closest_bbox_index = find_closest_bbox(track.tlbr, old_bboxes)
+                new_bboxes.append(old_bboxes[closest_bbox_index])
+            detections.xyxy = np.array(new_bboxes)
+            # detections.xyxy = np.array(
+            #     [track.tlbr for track in tracks], dtype=np.float32
+            # )
             detections.class_id = np.array(
                 [int(t.class_ids) for t in tracks], dtype=int
             )
@@ -249,17 +292,22 @@ class ByteTrack:
             detections.confidence = np.array(
                 [t.score for t in tracks], dtype=np.float32
             )
+            detections.mask = np.array([t.mask for t in tracks], dtype=bool)
+
         else:
             detections.tracker_id = np.array([], dtype=int)
 
         return detections
 
-    def update_with_tensors(self, tensors: np.ndarray) -> List[STrack]:
+    def update_with_tensors(
+        self, tensors: np.ndarray, masks: Optional[np.array] = None
+    ) -> List[STrack]:
         """
         Updates the tracker with the provided tensors and returns the updated tracks.
 
         Parameters:
             tensors: The new tensors to update with.
+            masks: The new masks associated to new tensors
 
         Returns:
             List[STrack]: Updated tracks.
@@ -281,6 +329,12 @@ class ByteTrack:
         inds_second = np.logical_and(inds_low, inds_high)
         dets_second = bboxes[inds_second]
         dets = bboxes[remain_inds]
+        if masks is not None:
+            masks_keep = masks[remain_inds]
+            masks_second = masks[inds_second]
+        else:
+            masks_keep = np.array([None] * len(remain_inds))
+            masks_second = np.array([None] * len(inds_second))
         scores_keep = scores[remain_inds]
         scores_second = scores[inds_second]
 
@@ -290,8 +344,10 @@ class ByteTrack:
         if len(dets) > 0:
             """Detections"""
             detections = [
-                STrack(STrack.tlbr_to_tlwh(tlbr), s, c)
-                for (tlbr, s, c) in zip(dets, scores_keep, class_ids_keep)
+                STrack(STrack.tlbr_to_tlwh(tlbr), s, c, m)
+                for (tlbr, s, c, m) in zip(
+                    dets, scores_keep, class_ids_keep, masks_keep
+                )
             ]
         else:
             detections = []
@@ -331,8 +387,10 @@ class ByteTrack:
         if len(dets_second) > 0:
             """Detections"""
             detections_second = [
-                STrack(STrack.tlbr_to_tlwh(tlbr), s, c)
-                for (tlbr, s, c) in zip(dets_second, scores_second, class_ids_second)
+                STrack(STrack.tlbr_to_tlwh(tlbr), s, c, m)
+                for (tlbr, s, c, m) in zip(
+                    dets_second, scores_second, class_ids_second, masks_second
+                )
             ]
         else:
             detections_second = []
@@ -393,6 +451,27 @@ class ByteTrack:
         self.tracked_tracks = [
             t for t in self.tracked_tracks if t.state == TrackState.Tracked
         ]
+        # print("------------- self.tracked_tracks ---------------")
+        # for track in self.tracked_tracks:
+        #     print(track.tlbr)
+        # print("------------- activated_starcks ---------------")
+        # for track in activated_starcks:
+        #     print(track.tlbr)
+        # print("------------- refind_stracks ---------------")
+        # for track in refind_stracks:
+        #     print(track.tlbr)
+        # print("------------- self.lost_tracks ---------------")
+        # for track in self.lost_tracks:
+        #     print(track.tlbr)
+        # print("------------- lost_stracks ---------------")
+        # for track in lost_stracks:
+        #     print(track.tlbr)
+        # print("------------- self.removed_tracks ---------------")
+        # for track in self.removed_tracks:
+        #     print(track.tlbr)
+        # print("------------- removed_stracks ---------------")
+        # for track in removed_stracks:
+        #     print(track.tlbr)
         self.tracked_tracks = joint_tracks(self.tracked_tracks, activated_starcks)
         self.tracked_tracks = joint_tracks(self.tracked_tracks, refind_stracks)
         self.lost_tracks = sub_tracks(self.lost_tracks, self.tracked_tracks)
@@ -402,8 +481,11 @@ class ByteTrack:
         self.tracked_tracks, self.lost_tracks = remove_duplicate_tracks(
             self.tracked_tracks, self.lost_tracks
         )
-        output_stracks = [track for track in self.tracked_tracks if track.is_activated]
+        # for t in self.tracked_tracks:
+        #     print(t.tlbr)
 
+        #output_stracks = [track for track in self.tracked_tracks if track.is_activated]
+        output_stracks = [track for track in activated_starcks]
         return output_stracks
 
 
