@@ -10,12 +10,22 @@ import numpy as np
 import os
 import sys
 import re
+import copy
 
-def draw_bbox(frame, bbox, id):
+import counting_workspace.misc.crop_AICity as detection_crop
+
+def xywh_to_xyxy(bbox):
     x, y, w, h = bbox
-    # Convert xywh to (x1, y1) and (x2, y2) format
     x1, y1 = int(x), int(y)
     x2, y2 = int(x + w), int(y + h)
+    return x1 ,y1, x2, y2
+
+
+
+def draw_bbox(frame, bbox, id):
+
+    x1,y1,x2,y2 = xywh_to_xyxy(bbox)
+
     color = (0, 255, 0)  # BGR color for the bounding box (green in this case)
     thickness = 2  # Thickness of the bounding box lines
 
@@ -35,10 +45,14 @@ def draw_bbox(frame, bbox, id):
 
     cv2.putText(frame, text, (text_x, text_y), font, font_scale, text_color, font_thickness)
 
-def ground_truth_for_frame(frame_id, last_read, frame_nr, curr_line, frame, lines):
+def ground_truth_for_frame(frame_id, last_read, frame_nr, curr_line, un_labeled_frame, lines):
+    croppable_detections = [] #kur saglabāt izgriežamos bbokšus
+    frame = un_labeled_frame.copy()
+
     if(last_read != 0 and frame_id == frame_nr):
-        print("output:",frame_nr, curr_line)
+        #print("output:",frame_nr, curr_line)
         draw_bbox(frame, [int(curr_line[2]),int(curr_line[3]),int(curr_line[4]),int(curr_line[5])], int(curr_line[1]))
+        croppable_detections.append([frame_nr, int(curr_line[1]), xywh_to_xyxy([int(curr_line[2]),int(curr_line[3]),int(curr_line[4]),int(curr_line[5])]), 1])
     if(last_read == 0 or frame_id == frame_nr):
         while frame_id == frame_nr:
             line = lines[last_read]
@@ -47,13 +61,14 @@ def ground_truth_for_frame(frame_id, last_read, frame_nr, curr_line, frame, line
             vehicle_id = int(curr_line[1])
             xywh = [int(curr_line[2]),int(curr_line[3]),int(curr_line[4]),int(curr_line[5])]
             if(frame_id == frame_nr):
-                print("output:",frame_nr, curr_line)
+                #print("output:",frame_nr, curr_line)
                 draw_bbox(frame, xywh, vehicle_id)
+                croppable_detections.append([frame_nr, vehicle_id, xywh_to_xyxy(xywh), 1 ])
                 last_read = last_read+1
             else:
                 last_read = last_read+1
                 break
-    return frame_id, last_read, frame_nr, curr_line, frame, lines
+    return frame_id, last_read, curr_line, frame, croppable_detections
 
 video_path_1 = '/home/tomass/tomass/ReID_pipele/source_videos/AI_City_01_Itersection/vdo4.avi'
 ground_truths_path_1 = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c004/gt/gt.txt"
@@ -82,11 +97,21 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
     # -------------------- INTERSECTION 1 -------------------------
     # reading frame from video
     _, frame1 = video1.read()
-    frame_id1, last_read1, frame_nr, curr_line1, frame1, lines1 = ground_truth_for_frame(frame_id1, last_read1, frame_nr, curr_line1, frame1, lines1)
+    frame_id1, last_read1, curr_line1, labeled_frame1, croppable_detections1 = ground_truth_for_frame(frame_id1, last_read1, frame_nr, curr_line1, frame1, lines1)
+    print(croppable_detections1)
+
+    #------------------------------------------------------------------
+    #print(croppable_detections)
+    for detection in croppable_detections1: #croppable detections satur detections zonai, iteree cauri zonaam
+        detection_crop.crop_from_bbox(frame1, detection[1], detection[2], detection[3]) # (frame, vehID, bbox, intersectionNr)
+
+
+
+
     # -------------------- INTERSECTION 2 -------------------------
     # reading frame from video
     _, frame2 = video2.read()
-    frame_id2, last_read2, frame_nr, curr_line2, frame2, lines2 = ground_truth_for_frame(frame_id2, last_read2, frame_nr, curr_line2, frame2, lines2)
+    frame_id2, last_read2, curr_line2, labeled_frame2, croppable_detections2 = ground_truth_for_frame(frame_id2, last_read2, frame_nr, curr_line2, frame2, lines2)
  
  
  
@@ -110,10 +135,10 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
 
 
 
-    resized = cv2.resize(frame1, (1280, 720))
+    resized = cv2.resize(labeled_frame1, (1280, 720))
     cv2.imshow("frame1", resized)
 
-    resized2 = cv2.resize(frame2, (1280, 720))
+    resized2 = cv2.resize(labeled_frame2, (1280, 720))
     cv2.imshow("frame2", resized2)
     cv2.waitKey(0)
 
