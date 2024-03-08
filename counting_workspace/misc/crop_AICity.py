@@ -14,11 +14,13 @@ def crop_from_bbox(frame, track_id_name, xyxy, folder):
     #     print("crop debug:")
     #     print(f"{track_id_name} : {xyxy}")
 
-    file_name = os.path.join(sys.path[0], f'cropped/{sequence_name}/{folder}/' + f'id_{track_id_name}.jpg')
-    print(file_name)
-    # os.chdir(save_dir)
-    # print(os.listdir(save_dir))
-    # print(os.getcwd())
+    # Create the directory if it doesn't exist
+    directory_path = os.path.join(sys.path[0], f'cropped/{sequence_name}/{folder}/')
+    os.makedirs(directory_path, exist_ok=True)
+
+    # Create the file path
+    file_name = os.path.join(directory_path, f'id_{track_id_name}.jpg')
+        
     if(os.path.exists(file_name) is False):
         if(min(x1, y1, x2, y2) > 0):
             cv2.imwrite(file_name, cropped_img)

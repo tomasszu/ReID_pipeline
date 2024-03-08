@@ -1,9 +1,5 @@
-import numpy as np
 import lancedb
 import pyarrow as pa
-
-import os
-import sys
 
 SCHEMA = pa.schema(
   [
