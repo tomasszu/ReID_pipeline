@@ -9,7 +9,7 @@ SCHEMA = pa.schema(
   ])
 
 def _init_(folder):
-  db = lancedb.connect("lancedb")
+  db = lancedb.connect("lancedbTest")
 
   try:
     db.create_table(folder, data=None, schema=SCHEMA)

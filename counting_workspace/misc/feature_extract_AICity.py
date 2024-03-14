@@ -125,12 +125,13 @@ def save_extractions_to_vector_db(folder_path, folder_name):
 
     #query(np.zeros(512))
 
-def save_extractions_to_lance_db(folder_path, folder_name):
+def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
     import numpy as np
     import re
     #from misc.database import Vehicles
     import counting_workspace.misc.lance_db_init as create_db
     from counting_workspace.misc.lance_db_AICity import update_vehicle
+    from counting_workspace.misc.lance_db_AICity import add_vehicle
 
     from docarray import DocList
     import numpy as np
@@ -161,7 +162,10 @@ def save_extractions_to_lance_db(folder_path, folder_name):
         image_id = re.sub(r'[^0-9]', '', image_name)
         #add_vehicle(image_id, embedding, folder_name, db)
         #print(f"embedding: {embedding}")
-        update_vehicle(image_id, embedding, folder_name, db)
+        if saving_mode == 0:
+            update_vehicle(image_id, embedding, folder_name, db)
+        if saving_mode == 1:
+            add_vehicle(image_id, embedding, folder_name, db)
         #print(f" {image_name} Embedding saved to vector_db.")
         os.remove(folder_path + image_name)
         #print(f" {image_name} deleted from folder")
