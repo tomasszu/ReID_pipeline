@@ -1,6 +1,6 @@
 import numpy as np
 
-import counting_workspace.misc.lance_db_init as create_db
+import counting_workspace.misc.lance_db_init_CLIP as create_db
 
 
 def add_vehicle(vehicle_id, embedding, intersection, db):

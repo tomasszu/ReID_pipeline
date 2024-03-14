@@ -99,7 +99,7 @@ def save_extractions_to_vector_db(folder_path, folder_name):
 
     device = "cuda"
 
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/net_19.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result4/net_20.pth", remove_classifier=True)
     model.eval()
     model.to(device)
 
@@ -139,7 +139,7 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
 
     device = "cuda"
 
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/net_19.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result4/net_20.pth", remove_classifier=True)
     model.eval()
     model.to(device)
 
@@ -162,9 +162,9 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
         image_id = re.sub(r'[^0-9]', '', image_name)
         #add_vehicle(image_id, embedding, folder_name, db)
         #print(f"embedding: {embedding}")
-        if saving_mode == 0:
+        if (saving_mode == 0) or (saving_mode == 2):
             update_vehicle(image_id, embedding, folder_name, db)
-        if saving_mode == 1:
+        elif (saving_mode == 1) or (saving_mode == 3):
             add_vehicle(image_id, embedding, folder_name, db)
         #print(f" {image_name} Embedding saved to vector_db.")
         os.remove(folder_path + image_name)
@@ -185,7 +185,7 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
 
     device = "cuda"
 
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/net_19.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/net_10.pth", remove_classifier=True)
     model.eval()
     model.to(device)
 

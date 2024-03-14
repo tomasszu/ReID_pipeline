@@ -13,13 +13,17 @@ import re
 import copy
 
 import counting_workspace.misc.crop_AICity as detection_crop
-import counting_workspace.misc.feature_extract_AICity as fExtract
+#No CLIP
+#import counting_workspace.misc.feature_extract_AICity as fExtract
+#With CLIP
+import counting_workspace.misc.feature_extract_AICity_CLIP as fExtract
 
 
 #SAVING MODE OPTIONS: 0 - complete summing of all vectors of one vehicle in one
 #SAVING MODE OPTIONS: 1 - complete saving of all vectors of one vehicle independently
-#SAVING MODE OPTIONS: 2 - Zone summing of vectors of one vehicle that has crossed multiple crop zones
-saving_mode = 2
+#SAVING MODE OPTIONS: 2 - summing vectors of vehicle in different zones only
+#SAVING MODE OPTIONS: 3 - saving all vectors of vehicle in different zones only
+saving_mode = 3
 
 total_iters = 0
 accumulative_accuracy = 0
@@ -99,8 +103,9 @@ def ground_truth_for_frame(frame_id, last_read, frame_nr, curr_line, un_labeled_
     if(seen_ids == None or len(seen_ids)):
         if(last_read != 0 and frame_id == frame_nr):
             #print("output:",frame_nr, curr_line)
-            draw_bbox(frame, [int(curr_line[2]),int(curr_line[3]),int(curr_line[4]),int(curr_line[5])], int(curr_line[1]))
-            croppable_detections.append([frame_nr, int(curr_line[1]), xywh_to_xyxy([int(curr_line[2]),int(curr_line[3]),int(curr_line[4]),int(curr_line[5])])])
+            if((seen_ids == None) or (int(curr_line[1]) in seen_ids)):
+                draw_bbox(frame, [int(curr_line[2]),int(curr_line[3]),int(curr_line[4]),int(curr_line[5])], int(curr_line[1]))
+                croppable_detections.append([frame_nr, int(curr_line[1]), xywh_to_xyxy([int(curr_line[2]),int(curr_line[3]),int(curr_line[4]),int(curr_line[5])])])
         if(last_read == 0 or frame_id == frame_nr):
             while frame_id == frame_nr:
                 line = lines[last_read]
@@ -112,7 +117,7 @@ def ground_truth_for_frame(frame_id, last_read, frame_nr, curr_line, un_labeled_
                     #print("output:",frame_nr, curr_line)
                     last_read = last_read+1 # !!!!!!! Moš kkas tiek izlaists cauri apakšējā pārbaudē, bet kopumā izskatās, ka ir ok
                     #Ja ReID daļā (2. krust) tad paarbaudam vai tads id vispār ir pirmstam piefiksēts               
-                    if seen_ids == None or vehicle_id in seen_ids:
+                    if((seen_ids == None) or (vehicle_id in seen_ids)):
                         draw_bbox(frame, xywh, vehicle_id)
                         croppable_detections.append([frame_nr, vehicle_id, xywh_to_xyxy(xywh)])
                 else:
@@ -120,9 +125,33 @@ def ground_truth_for_frame(frame_id, last_read, frame_nr, curr_line, un_labeled_
                     break
     return frame_id, last_read, curr_line, frame, croppable_detections
 
-def filter_for_crop_zones(frame, croppable_detections):
+def zone_of_point(zones, point):
+    """
+    Determine the zone index in which a given point lies.
+    
+    Args:
+    - point (tuple): (x, y) coordinates of the point
+    - zones (list): List of zone coordinates, each zone represented as ((x1, y1), (x2, y2))
+    
+    Returns:
+    - zone_index (int): Index of the zone in which the point lies, or -1 if it's not in any zone
+    """
+    x, y = point
+    
+    # Iterate through each zone and check if the point lies within it
+    for zone_index, zone in enumerate(zones):
+        x1, y1, x2, y2 = zone
+        if x1 <= x <= x2 and y1 <= y <= y2:
+            return zone_index
+    
+    # If the point is not in any zone, return -1
+    return -1
+
+
+def filter_for_crop_zones(frame, croppable_detections, zone_of_detections):
     
     center_points = [] #center points of detections
+    croppable_detections_filtered = []
 
     # Extract center points from bounding boxes and store in the center_points list
     for detection in croppable_detections:
@@ -150,25 +179,32 @@ def filter_for_crop_zones(frame, croppable_detections):
             y1 = i * zone_height
             x2 = (j + 1) * zone_width
             y2 = (i + 1) * zone_height
-
-            zones.append((x1, y1, x2, y2))
+            if(y1 > 325):
+                zones.append((x1, y1, x2, y2))
 
     # Draw the zones on the frame
     for zone in zones:
         draw_zone(frame, zone)
 
+    for detection, center in zip(croppable_detections, center_points):
+        zone = zone_of_point(zones, center)
+        if(zone != -1):
+            if((detection[1] not in zone_of_detections) or (zone_of_detections[detection[1]] != zone)):
+                croppable_detections_filtered.append(detection)
+                zone_of_detections.update({detection[1] : zone})
 
-    return labeled_frame1, croppable_detections
+
+    return labeled_frame1, croppable_detections_filtered
 
 
 video_path_1 = '/home/tomass/tomass/ReID_pipele/source_videos/AI_City_01_Itersection/vdo4.avi'
 ground_truths_path_1 = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c004/gt/gt.txt"
-intersection1_folder = os.path.join(sys.path[0], f'cropped/AIC22_Track1_MTMC_train_S01/1test/')
+intersection1_folder = os.path.join(sys.path[0], f'cropped/AIC22_Track1_MTMC_train_S01/1/')
 
 
 video_path_2 = '/home/tomass/tomass/ReID_pipele/source_videos/AI_City_01_Itersection/vdo1.avi'
 ground_truths_path_2 = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c001/gt/gt.txt"
-intersection2_folder = os.path.join(sys.path[0], f'cropped/AIC22_Track1_MTMC_train_S01/2test/')
+intersection2_folder = os.path.join(sys.path[0], f'cropped/AIC22_Track1_MTMC_train_S01/2/')
 
 
 video1 = cv2.VideoCapture(video_path_1)
@@ -188,6 +224,10 @@ last_read2 = 0
 frame_id2 = 1
 
 seen_vehicle_ids = []
+
+zone_of_detections = {}
+
+
 for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
     frame_nr +=1
     # -------------------- INTERSECTION 1 -------------------------
@@ -197,23 +237,19 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
     #print(croppable_detections1)
 
     #Ja izmantojam crop zones
-    if(saving_mode == 2):
-        labeled_frame1, croppable_detections1 = filter_for_crop_zones(labeled_frame1, croppable_detections1)
+    if(saving_mode == 2 or saving_mode == 3):
+        labeled_frame1, croppable_detections1 = filter_for_crop_zones(labeled_frame1, croppable_detections1, zone_of_detections)
     
     for detection in croppable_detections1: #croppable detections satur detections zonai, iteree cauri zonaam
         detection_crop.crop_from_bbox(frame1, detection[1], detection[2], 1) # (frame, vehID, bbox, intersectionNr)
-        seen_vehicle_ids.append(detection[1])
+        if detection[1] not in seen_vehicle_ids:
+            seen_vehicle_ids.append(detection[1])
 
     if(os.path.exists(intersection1_folder) and (not len(os.listdir(intersection1_folder)) == 0)):
         #fExtract.save_extractions_to_CSV(intersection_folder)
         #fExtract.save_extractions_to_vector_db(intersection_folder, intersection)
-        #fExtractCLIP.save_extractions_to_lance_db(intersection_folder, intersection)
-        if(saving_mode == 0 or saving_mode == 1):
-
-            fExtract.save_extractions_to_lance_db(intersection1_folder, 1, saving_mode)
-
-        elif(saving_mode == 2):
-            pass
+        fExtract.save_extractions_to_lance_db(intersection1_folder, 1, saving_mode)
+        #fExtract.save_extractions_to_lance_db(intersection1_folder, 1, saving_mode)
 
 
 
@@ -242,15 +278,12 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
     for i in images:
         os.remove(i)
 
+    # resized = cv2.resize(labeled_frame1, (1280, 720))
+    # cv2.imshow("frame1", resized)
 
-
-
-    resized = cv2.resize(labeled_frame1, (1280, 720))
-    cv2.imshow("frame1", resized)
-
-    resized2 = cv2.resize(labeled_frame2, (1280, 720))
-    cv2.imshow("frame2", resized2)
-    cv2.waitKey(0)
+    # resized2 = cv2.resize(labeled_frame2, (1280, 720))
+    # cv2.imshow("frame2", resized2)
+    # cv2.waitKey(0)
 
 video1.release()
 file1.close()
