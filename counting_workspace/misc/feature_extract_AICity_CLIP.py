@@ -16,6 +16,7 @@ from vehicle_reid.load_model import load_model_from_opts
 import matplotlib.pyplot as plt
 
 import counting_workspace.misc.lance_db_CLIP_AICity as l_db
+import counting_workspace.misc.lance_db_init_CLIP as create_db
 
 
 
@@ -53,6 +54,23 @@ def extract_feature(model, X, device="cuda"):
     fnorm = torch.norm(feature, p=2)
     return feature.div(fnorm)
 
+def z_score_normalize_and_concat(v1, v2):
+
+    # Convert v1 and v2 to numpy arrays
+    v1 = np.array(v1)
+    v2 = np.array(v2)
+    # Calculate mean and standard deviation for each vector
+    mean_v1, std_v1 = np.mean(v1), np.std(v1)
+    mean_v2, std_v2 = np.mean(v2), np.std(v2)
+
+    # Apply z-score normalization to each vector
+    v1_normalized = (v1 - mean_v1) / std_v1
+    v2_normalized = (v2 - mean_v2) / std_v2
+
+    normalized_vector = np.append(v1_normalized, v2_normalized, 1)
+
+    return normalized_vector
+
 def save_extractions_to_CSV(folder):
     import numpy as np
     import csv
@@ -88,51 +106,50 @@ def save_extractions_to_CSV(folder):
             # COUNTER = COUNTER + 1
         print("Embeddings saved to CSV.")
 
-def save_extractions_to_vector_db(folder_path, folder_name):
-    import numpy as np
-    import re
-    #from misc.database import Vehicles
-    import misc.database_init as create_db
-    from misc.database import add_vehicle
-    from misc.database import query
+# def save_extractions_to_vector_db(folder_path, folder_name):
+#     import numpy as np
+#     import re
+#     #from misc.database import Vehicles
+#     import misc.database_init as create_db
+#     from misc.database import add_vehicle
+#     from misc.database import query
 
-    from docarray import DocList
-    import numpy as np
-    from vectordb import InMemoryExactNNVectorDB, HNSWVectorDB
+#     from docarray import DocList
+#     import numpy as np
+#     from vectordb import InMemoryExactNNVectorDB, HNSWVectorDB
 
-    device = "cuda"
+#     device = "cuda"
 
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result4/net_20.pth", remove_classifier=True)
-    model.eval()
-    model.to(device)
+#     model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result4/net_20.pth", remove_classifier=True)
+#     model.eval()
+#     model.to(device)
 
-    extractables_folder = folder_path
-    extractable_images = os.listdir(extractables_folder)
+#     extractables_folder = folder_path
+#     extractable_images = os.listdir(extractables_folder)
 
-    images = [Image.open(extractables_folder + x) for x in extractable_images]
-    X_images = torch.stack(tuple(map(data_transforms, images))).to(device)
+#     images = [Image.open(extractables_folder + x) for x in extractable_images]
+#     X_images = torch.stack(tuple(map(data_transforms, images))).to(device)
 
-    features = [extract_feature(model, X) for X in X_images]
-    features = torch.stack(features).detach().cpu()
+#     features = [extract_feature(model, X) for X in X_images]
+#     features = torch.stack(features).detach().cpu()
 
-    features_array = np.array(features)
+#     features_array = np.array(features)
 
-    create_db._init_(folder_name)
+#     create_db._init_(folder_name)
 
-    for image_name, embedding in zip(extractable_images, features_array):
-        image_id = re.sub(r'[^0-9]', '', image_name)
-        add_vehicle(image_id, embedding, folder_name)
-        print(f" {image_name} Embedding saved to vector_db.")
-        os.remove(folder_path + image_name)
-        print(f" {image_name} deleted from folder")
+#     for image_name, embedding in zip(extractable_images, features_array):
+#         image_id = re.sub(r'[^0-9]', '', image_name)
+#         add_vehicle(image_id, embedding, folder_name)
+#         print(f" {image_name} Embedding saved to vector_db.")
+#         os.remove(folder_path + image_name)
+#         print(f" {image_name} deleted from folder")
 
-    #query(np.zeros(512))
+#     #query(np.zeros(512))
 
 def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
     import numpy as np
     import re
     #from misc.database import Vehicles
-    import counting_workspace.misc.lance_db_init_CLIP as create_db
     from counting_workspace.misc.lance_db_AICity import update_vehicle
     from counting_workspace.misc.lance_db_AICity import add_vehicle
 
@@ -154,6 +171,7 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
 
     features = [extract_feature(model, X) for X in X_images]
     features = torch.stack(features).detach().cpu()
+    features_array = np.array(features)
 
     #CLIP
 
@@ -165,8 +183,10 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
         CLIPfeatures = torch.stack(CLIPfeatures, 1).detach().cpu()
 
     CLIPfeatures_array = np.array(CLIPfeatures, dtype=np.float32)[0]
-    features_array = np.append(CLIPfeatures_array, features, 1)
-    features_array = softmax(features_array)
+    features_array = (CLIPfeatures_array + features_array)/2
+    #features_array = z_score_normalize_and_concat(features, CLIPfeatures_array)
+    #features_array = np.append(CLIPfeatures_array, features, 1)
+    #features_array = softmax(features_array)
 
 
     #features_array = np.array(features)
@@ -193,7 +213,7 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
     import numpy as np
     import re
     #from misc.database import Vehicles
-    import counting_workspace.misc.lance_db_init_CLIP as create_db
+    
     from counting_workspace.misc.lance_db_AICity import update_vehicle
 
     from docarray import DocList
@@ -227,8 +247,10 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
         CLIPfeatures = torch.stack(CLIPfeatures, 1).detach().cpu()
 
     CLIPfeatures_array = np.array(CLIPfeatures, dtype=np.float32)[0]
-    features_array = np.append(CLIPfeatures_array, ReIDfeatures_array, 1)
-    features_array = softmax(features_array)
+    features_array = (CLIPfeatures_array + ReIDfeatures_array)/2
+    #features_array = z_score_normalize_and_concat(ReIDfeatures_array, CLIPfeatures_array)
+    #features_array = np.append(CLIPfeatures_array, ReIDfeatures_array, 1)
+    #features_array = softmax(features_array)
     #print(f"features_array: {features_array}")
 
     db = create_db._init_(queried_folder_name)
