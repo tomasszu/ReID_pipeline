@@ -14,9 +14,9 @@ import copy
 
 import counting_workspace.misc.crop_AICity as detection_crop
 #No CLIP
-# import counting_workspace.misc.feature_extract_AICity as fExtract
+import counting_workspace.misc.feature_extract_AICity as fExtract
 #With CLIP
-import counting_workspace.misc.feature_extract_AICity_CLIP as fExtract
+#import counting_workspace.misc.feature_extract_AICity_CLIP as fExtract
 
 
 #SAVING MODE OPTIONS: 0 - complete summing of all vectors of one vehicle in one
@@ -274,9 +274,9 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
 
 
     #refresh 2. intersection detections
-    # images = glob.glob(intersection2_folder + '/*')
-    # for i in images:
-    #     os.remove(i)
+    images = glob.glob(intersection2_folder + '/*')
+    for i in images:
+        os.remove(i)
 
     # resized = cv2.resize(labeled_frame1, (1280, 720))
     # cv2.imshow("frame1", resized)
