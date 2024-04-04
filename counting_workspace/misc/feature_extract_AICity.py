@@ -38,10 +38,16 @@ def fliplr(img):
 
 def extract_feature(model, X, device="cuda"):
     """Exract the embeddings of a single image tensor X"""
+    # print("X")
+    # print(X.shape)
     if len(X.shape) == 3:
         X = torch.unsqueeze(X, 0)
+        # print("unsqueezed X")
+        # print(X.shape)
     X = X.to(device)
     feature = model(X).reshape(-1)
+    # print("extracted feature")
+    # print(feature.shape)
 
     X = fliplr(X)
     flipped_feature = model(X).reshape(-1)
@@ -139,7 +145,7 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
 
     device = "cuda"
 
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result6/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result6/net_19.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/net_10.pth", remove_classifier=True)
     model.eval()
     model.to(device)
 
@@ -148,6 +154,9 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
 
     images = [Image.open(extractables_folder + x) for x in extractable_images]
     X_images = torch.stack(tuple(map(data_transforms, images))).to(device)
+
+    # print("X_images shape")
+    # print(X_images.shape)
 
     features = [extract_feature(model, X) for X in X_images]
     features = torch.stack(features).detach().cpu()
@@ -185,7 +194,7 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
 
     device = "cuda"
 
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result6/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result6/net_19.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/net_10.pth", remove_classifier=True)
     model.eval()
     model.to(device)
 

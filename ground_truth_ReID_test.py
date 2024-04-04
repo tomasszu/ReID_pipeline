@@ -278,6 +278,8 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
     for i in images:
         os.remove(i)
 
+    #print(seen_vehicle_ids)
+
     # resized = cv2.resize(labeled_frame1, (1280, 720))
     # cv2.imshow("frame1", resized)
 
