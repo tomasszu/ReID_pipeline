@@ -27,6 +27,8 @@
 import subprocess
 import csv
 
+import json
+
 #Number of chosen options per parameter
 
 num_warm_epoch = 5
@@ -47,12 +49,12 @@ num_linear_num = 3
 
 opt_warm_epoch = [0,1,2,3,4]
 opt_lr = [0.01,0.025,0.05,0.075,0.1]
-opt_cos_lr = [True, False]
+opt_cos_lr = [False, True]
 #opt_fp16 = [True, False]
 opt_stride = [1,2,3]
 opt_droprate = [0.1,0.3,0.4,0.5,0.6]
 opt_erasing_prob = [0.3,0.5,0.7]
-opt_color_jitter = [True, False]
+opt_color_jitter = [False, True]
 opt_label_smoothing = [0.0,0.1,0.2]
 opt_model = ["resnet_ibn", "resnet", "densenet", "swin", "efficientnet"]
 opt_loss = ["triplet", "contrast", "instance", "arcface", "cosface", "circle", "sphere"]
@@ -60,32 +62,142 @@ opt_linear_num = [256, 512, 1024]
 
 #Sequence of the testing matrix
 
-num_epochs = 10
-opt_epochs = [1,3,5,7,9,11,13,15,17,19]
-num_modes = 2
-opt_modes = ["train","val"]
+num_epochs = 6 #Ideja ka 2x mazaak mes liekam masiivaa
+opt_epochs = ["5","7","9","11","13","15"] # Jaskataas vai ar to save_freq parametra nomaiņu pietika lai šitā sanāktu
 
-testing_matrix = [num_model][num_loss][num_label_smoothing][num_erasing_prob][num_droprate][num_lr][num_warm_epoch][num_stride][num_linear_num][num_color_jitter][num_cos_lr][num_epochs][num_modes]
 
-#Value piešķiršana
+# testing_matrix = [num_model][num_loss][num_label_smoothing][num_erasing_prob][num_droprate][num_lr][num_warm_epoch][num_stride][num_linear_num][num_color_jitter][num_cos_lr][num_epochs][num_modes]
+
+# #Value piešķiršana
+# for st, stride in enumerate(opt_stride):
+#     for ln, linear_num in enumerate(opt_linear_num):
+#         for jt, jitter in enumerate(opt_color_jitter):
+#             for cl, cos_lr in enumerate(opt_cos_lr):
+#                 for ep, epoch in enumerate(opt_epochs): # Te arī vajag lai viss atbilst
+#                     for md, mode in enumerate(opt_modes):
+#                         testing_matrix[0][0][0][0][0][0][0][st][ln][jt][cl][ep][md] = "0.01,0.06"
+
+# TRAINING MATRIX 1. DAĻA -------------------------------------------------------------------------
+
+# Path to the Python file you want to run
+train_file_path = "vehicle_reid_repo/vehicle_reid/train_modified_for_automation.py"
+
+#results_matrix = [num_stride][num_linear_num][num_color_jitter][num_cos_lr][num_epochs]
+results_matrix = [[[[[0 for _ in range(num_epochs)] for _ in range(num_cos_lr)] for _ in range(num_color_jitter)] for _ in range(num_linear_num)] for _ in range(num_stride)]
+
+# # Initialize a nested dictionary to hold values for JSON
+json_data = {}
+
+# #Trennesana
 for st, stride in enumerate(opt_stride):
+    json_data[str(stride)] = {}
     for ln, linear_num in enumerate(opt_linear_num):
+        json_data[str(stride)][str(linear_num)] = {}
         for jt, jitter in enumerate(opt_color_jitter):
+            json_data[str(stride)][str(linear_num)][str(jitter)] = {}
             for cl, cos_lr in enumerate(opt_cos_lr):
-                for ep, epoch in enumerate(opt_epochs):
-                    for md, mode in enumerate(opt_modes):
-                        testing_matrix[0][0][0][0][0][0][0][st][ln][jt][cl][ep][md] = "0.01,0.06"
+                json_data[str(stride)][str(linear_num)][str(jitter)][str(cos_lr)] = {}
+                #TRAIN
+                # Run the Python file and wait for its execution to finish
+                # #result = subprocess.run(["python3", python_file_path, "--name=test_result", "--warm_epoch=1", "--lr=0.1", "--cosine", "--fp16", "--stride=1", "--droprate=0.1", "--erasing_p=0.1", "--color_jitter", "--label_smoothing=0.1"], capture_output=False)
 
-#Value izprintēšana
+                if jitter is True:
+                    if cos_lr is True:
+                        result = subprocess.run(["python3", train_file_path, f"--name=train1_{st}{ln}{jt}{cl}_output","--total_epoch=16", "--fp16", f"--stride={stride}", f"--linear_num={linear_num}", "--color_jitter", "--cosine"], capture_output=False)
+                    else:
+                        result = subprocess.run(["python3", train_file_path, f"--name=train1_{st}{ln}{jt}{cl}_output","--total_epoch=16", "--fp16", f"--stride={stride}", f"--linear_num={linear_num}", "--color_jitter"], capture_output=False)
+                else:
+                    if cos_lr is True:
+                        result = subprocess.run(["python3", train_file_path, f"--name=train1_{st}{ln}{jt}{cl}_output","--total_epoch=16", "--fp16", f"--stride={stride}", f"--linear_num={linear_num}", "--cosine"], capture_output=False)
+                    else:
+                        result = subprocess.run(["python3", train_file_path, f"--name=train1_{st}{ln}{jt}{cl}_output","--total_epoch=16", "--fp16", f"--stride={stride}", f"--linear_num={linear_num}"], capture_output=False)
+                # Check if the execution was successful
+                if result.returncode == 0:
+                    print("Training Script executed successfully!")
+                    print(result)
+                else:
+                    print("An error occurred while executing the script.")
+                    print("Error output:", result.stderr.decode())
+                with open(f"vehicle_reid_repo/vehicle_reid/automated_training/train1_{st}{ln}{jt}{cl}_output.txt", "r") as file:
+                    for line in file:
+                        res_strings = line.split(',')
+                        if res_strings[0] in opt_epochs:
+                            state = str(res_strings[0] + " " + res_strings[1])
+                            value = res_strings[2],res_strings[3].rstrip('\n')
+                            json_data[str(stride)][str(linear_num)][str(jitter)][str(cos_lr)][state] = value
+                            # Write the JSON data to a file
+                            with open("vehicle_reid_repo/vehicle_reid/automated_training/train1_output.json", "w") as json_file:
+                                json.dump(json_data, json_file, indent=4)
+                        #testing_matrix[st][ln][jt][cl][ep] = "0.01,0.06"
 
-for st, stride in enumerate(opt_stride):
-    for ln, linear_num in enumerate(opt_linear_num):
-        for jt, jitter in enumerate(opt_color_jitter):
-            for cl, cos_lr in enumerate(opt_cos_lr):
-                for ep, epoch in enumerate(opt_epochs):
-                    for md, mode in enumerate(opt_modes):
-                        print(opt_stride[st], opt_linear_num[ln], opt_color_jitter[jt],opt_cos_lr[cl], opt_epochs[ep], opt_modes[md], testing_matrix[0][0][0][0][0][0][0][st][ln][jt][cl][ep][md])
 
+#-------------------------------------------------------------------------------------------------
+
+# #Value piešķiršana
+# for st, stride in enumerate(opt_stride):
+#     for ln, linear_num in enumerate(opt_linear_num):
+#         for jt, jitter in enumerate(opt_color_jitter):
+#             for cl, cos_lr in enumerate(opt_cos_lr):
+#                 for ep, epoch in enumerate(opt_epochs): # Te arī vajag lai viss atbilst
+#                     for md, mode in enumerate(opt_modes):
+#                         testing_matrix[0][0][0][0][0][0][0][st][ln][jt][cl][ep][md] = "0.01,0.06"
+
+
+####################### Simulation code: ###########################################
+
+# opt_upper = ["one", "two", "three"]
+# opt_middle = ["viens", "divi", "tris"]
+# opt_lower = [100, 200, 300]
+
+
+# # Define the dimensions
+# rows = opt_upper.__len__()
+# cols = opt_middle.__len__()
+# depth = opt_lower.__len__()
+
+# num_epochs = 8 #Ideja ka 2x mazaak mes liekam masiivaa
+# opt_epochs = ["1","3","5","7","9","11","13","15"] # Jaskataas vai ar to save_freq parametra nomaiņu pietika lai šitā sanāktu
+
+
+# # Initialize the multidimensional array with zeros
+# json_matrix = [[[[0 for _ in range(num_epochs)] for _ in range(depth)] for _ in range(cols)] for _ in range(rows)]
+# # print(json_matrix)
+
+# # Initialize a nested dictionary to hold values for JSON
+# json_data = {}
+
+# # Value assignment and JSON creation simultaneously
+# for u, upp in enumerate(opt_upper):
+#     json_data[upp] = {}
+#     for m, mid in enumerate(opt_middle):
+#         json_data[upp][mid] = {}
+#         for l, low in enumerate(opt_lower):
+#             json_data[upp][mid][str(low)] = {}
+#             with open("vehicle_reid_repo/vehicle_reid/automated_training/outputtest_result2.txt", "r") as file:
+#                 for line in file:
+#                     res_strings = line.split(',')
+#                     if res_strings[0] in opt_epochs:
+#                         state = str(res_strings[0] + " " + res_strings[1])
+#                         value = res_strings[2],res_strings[3].rstrip('\n')
+#                         json_data[upp][mid][str(low)][state] = value
+                # value = "value"
+                # json_matrix[u][m][l][e] = value
+                # json_data[upp][mid][str(low)][ep] = value
+
+# print(json_matrix)
+
+# Write the JSON data to a file
+# with open("output.json", "w") as json_file:
+#     json.dump(json_data, json_file, indent=4)
+
+# # Optional: Print the JSON data
+# print(json.dumps(json_data, indent=4))
+
+######################################################################################
+
+# Later, you can fill out the values as needed
+# For example, to assign a value to the element at position (i, j, k)
+# json_matrix[i][j][k] = value
 
 
  
@@ -195,9 +307,9 @@ for st, stride in enumerate(opt_stride):
 
 
 
-# ######################################################################
-# # Train and evaluate
-# # ---------------------------
+######################################################################
+# Train and evaluate
+# ---------------------------
 
 
 # if version[0] > 1 or (version[0] == 1 and version[1] >= 10):
@@ -213,12 +325,12 @@ for st, stride in enumerate(opt_stride):
 
 
     
-# # Path to the Python file you want to run
+# Path to the Python file you want to run
 # python_file_path = "vehicle_reid_repo/vehicle_reid/train_modified_for_automation.py"
 
 # # Run the Python file and wait for its execution to finish
 # #result = subprocess.run(["python3", python_file_path, "--name=test_result", "--warm_epoch=1", "--lr=0.1", "--cosine", "--fp16", "--stride=1", "--droprate=0.1", "--erasing_p=0.1", "--color_jitter", "--label_smoothing=0.1"], capture_output=False)
-# result = subprocess.run(["python3", python_file_path,"--name=test_result2","--total_epoch=16", "--fp16", "--cosine"], capture_output=False)
+# result = subprocess.run(["python3", python_file_path,"--name=test_result","--total_epoch=16", "--fp16", "--cosine"], capture_output=False)
 # # Check if the execution was successful
 # if result.returncode == 0:
 #     print("Script executed successfully!")
