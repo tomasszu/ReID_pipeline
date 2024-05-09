@@ -9,7 +9,7 @@ from PIL import Image
 sys.path.append("vehicle_reid_repo/")
 sys.path.append("..")
 #import vehicle_reid_repo
-from vehicle_reid.load_model import load_model_from_opts
+from vehicle_reid.load_model_ModelArchChange_ForInfer import load_model_from_opts
 import matplotlib.pyplot as plt
 
 import counting_workspace.misc.lance_db_CLIP_AICity as l_db
@@ -45,7 +45,14 @@ def extract_feature(model, X, device="cuda"):
         # print("unsqueezed X")
         # print(X.shape)
     X = X.to(device)
-    feature = model(X).reshape(-1)
+    # Modification:
+
+    feature = model(X)
+
+    flattened_features = feature.view(1, -1)
+
+    feature = flattened_features.reshape(-1)
+
     # print("extracted feature")
     # print(feature.shape)
 
@@ -135,7 +142,7 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
     import numpy as np
     import re
     #from misc.database import Vehicles
-    import counting_workspace.misc.lance_db_init as create_db
+    import counting_workspace.misc.lance_db_init_ModelArchChange_ForInfer as create_db
     from counting_workspace.misc.lance_db_AICity import update_vehicle
     from counting_workspace.misc.lance_db_AICity import add_vehicle
 
@@ -188,7 +195,7 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
     import numpy as np
     import re
     #from misc.database import Vehicles
-    import counting_workspace.misc.lance_db_init as create_db
+    import counting_workspace.misc.lance_db_init_ModelArchChange_ForInfer as create_db
     from counting_workspace.misc.lance_db_AICity import update_vehicle
 
     from docarray import DocList

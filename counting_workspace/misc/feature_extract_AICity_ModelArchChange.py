@@ -9,7 +9,7 @@ from PIL import Image
 sys.path.append("vehicle_reid_repo/")
 sys.path.append("..")
 #import vehicle_reid_repo
-from vehicle_reid.load_model import load_model_from_opts
+from vehicle_reid.load_model_ModelArchChange import load_model_from_opts
 import matplotlib.pyplot as plt
 
 import counting_workspace.misc.lance_db_CLIP_AICity as l_db
@@ -135,7 +135,7 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
     import numpy as np
     import re
     #from misc.database import Vehicles
-    import counting_workspace.misc.lance_db_init as create_db
+    import counting_workspace.misc.lance_db_init_ModelArchChange as create_db
     from counting_workspace.misc.lance_db_AICity import update_vehicle
     from counting_workspace.misc.lance_db_AICity import add_vehicle
 
@@ -148,7 +148,7 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
     # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/net_10.pth")
     # print(model)
     model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/net_10.pth", remove_classifier=True)
-    #print(model)
+    print(model)
     model.eval()
     model.to(device)
 
@@ -188,7 +188,7 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
     import numpy as np
     import re
     #from misc.database import Vehicles
-    import counting_workspace.misc.lance_db_init as create_db
+    import counting_workspace.misc.lance_db_init_ModelArchChange as create_db
     from counting_workspace.misc.lance_db_AICity import update_vehicle
 
     from docarray import DocList

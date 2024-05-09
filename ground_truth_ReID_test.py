@@ -14,9 +14,11 @@ import copy
 
 import counting_workspace.misc.crop_AICity as detection_crop
 #No CLIP
-import counting_workspace.misc.feature_extract_AICity as fExtract
+# import counting_workspace.misc.feature_extract_AICity as fExtract
 #With CLIP
 #import counting_workspace.misc.feature_extract_AICity_CLIP as fExtract
+#For ModelArchChange
+import counting_workspace.misc.feature_extract_AICity_ModelArchChange_ForInfer as fExtract
 
 
 #SAVING MODE OPTIONS: 0 - complete summing of all vectors of one vehicle in one
@@ -250,6 +252,7 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
         #fExtract.save_extractions_to_vector_db(intersection_folder, intersection)
         fExtract.save_extractions_to_lance_db(intersection1_folder, 1, saving_mode)
         #fExtract.save_extractions_to_lance_db(intersection1_folder, 1, saving_mode)
+
 
 
 
