@@ -6,9 +6,9 @@ import torch
 from torchvision import transforms
 from PIL import Image
 
-sys.path.append("vehicle_reid_repo/")
+sys.path.append("vehicle_reid_repo2/")
 sys.path.append("..")
-#import vehicle_reid_repo
+#import vehicle_reid_repo2
 from vehicle_reid.load_model import load_model_from_opts
 import matplotlib.pyplot as plt
 
@@ -67,7 +67,7 @@ def save_extractions_to_CSV(folder):
 
     device = "cuda"
 
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result/net_19.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result/net_19.pth", remove_classifier=True)
     model.eval()
     model.to(device)
 
@@ -105,7 +105,7 @@ def save_extractions_to_vector_db(folder_path, folder_name):
 
     device = "cuda"
 
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result4/net_20.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result4/net_20.pth", remove_classifier=True)
     model.eval()
     model.to(device)
 
@@ -145,9 +145,9 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
 
     device = "cuda"
 
-    # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/net_10.pth")
+    # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
     # print(model)
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/net_10.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model_arch_change1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model_arch_change1/net_19.pth", remove_classifier=True)
     #print(model)
     model.eval()
     model.to(device)
@@ -197,7 +197,7 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
 
     device = "cuda"
 
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/net_10.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model_arch_change1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model_arch_change1/net_19.pth", remove_classifier=True)
     model.eval()
     model.to(device)
 

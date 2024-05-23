@@ -6,9 +6,12 @@ import torch
 from torchvision import transforms
 from PIL import Image
 
-sys.path.append("vehicle_reid_repo/")
+sys.path.append("vehicle_reid_repo2/")
 sys.path.append("..")
 #import vehicle_reid_repo
+# For partial deconstruction of the classification head
+#from vehicle_reid.load_model_ModelArchChange_ForInfer_partial import load_model_from_opts
+# For full removal of the classification head
 from vehicle_reid.load_model_ModelArchChange_ForInfer import load_model_from_opts
 import matplotlib.pyplot as plt
 
@@ -98,51 +101,14 @@ def save_extractions_to_CSV(folder):
             # COUNTER = COUNTER + 1
         print("Embeddings saved to CSV.")
 
-def save_extractions_to_vector_db(folder_path, folder_name):
-    import numpy as np
-    import re
-    #from misc.database import Vehicles
-    import misc.database_init as create_db
-    from misc.database import add_vehicle
-    from misc.database import query
-
-    from docarray import DocList
-    import numpy as np
-    from vectordb import InMemoryExactNNVectorDB, HNSWVectorDB
-
-    device = "cuda"
-
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result4/net_20.pth", remove_classifier=True)
-    model.eval()
-    model.to(device)
-
-    extractables_folder = folder_path
-    extractable_images = os.listdir(extractables_folder)
-
-    images = [Image.open(extractables_folder + x) for x in extractable_images]
-    X_images = torch.stack(tuple(map(data_transforms, images))).to(device)
-
-    features = [extract_feature(model, X) for X in X_images]
-    features = torch.stack(features).detach().cpu()
-
-    features_array = np.array(features)
-
-    create_db._init_(folder_name)
-
-    for image_name, embedding in zip(extractable_images, features_array):
-        image_id = re.sub(r'[^0-9]', '', image_name)
-        add_vehicle(image_id, embedding, folder_name)
-        print(f" {image_name} Embedding saved to vector_db.")
-        os.remove(folder_path + image_name)
-        print(f" {image_name} deleted from folder")
-
-    #query(np.zeros(512))
-
 def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
     import numpy as np
     import re
     #from misc.database import Vehicles
+    #For non 512 vectors
     import counting_workspace.misc.lance_db_init_ModelArchChange_ForInfer as create_db
+    #For 512 vectors
+    # import counting_workspace.misc.lance_db_init as create_db
     from counting_workspace.misc.lance_db_AICity import update_vehicle
     from counting_workspace.misc.lance_db_AICity import add_vehicle
 
@@ -152,9 +118,9 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
 
     device = "cuda"
 
-    # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/net_10.pth")
+    # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/benchmark_model/net_10.pth")
     # print(model)
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/net_10.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model_arch_change1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model_arch_change1/net_19.pth", remove_classifier=True)
     #print(model)
     model.eval()
     model.to(device)
@@ -195,7 +161,10 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
     import numpy as np
     import re
     #from misc.database import Vehicles
+    #For non 512 vectors
     import counting_workspace.misc.lance_db_init_ModelArchChange_ForInfer as create_db
+    #For 512 vectors
+    # import counting_workspace.misc.lance_db_init as create_db
     from counting_workspace.misc.lance_db_AICity import update_vehicle
 
     from docarray import DocList
@@ -204,7 +173,7 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
 
     device = "cuda"
 
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo/vehicle_reid/model/result7/net_10.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model_arch_change1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model_arch_change1/net_19.pth", remove_classifier=True)
     model.eval()
     model.to(device)
 

@@ -43,28 +43,37 @@ from dataset import ImageDataset, BatchSampler
 # Options
 # --------
 parser = argparse.ArgumentParser(description='Training')
-parser.add_argument('--data_dir', required=True,
-                    type=str, help='path to the dataset root directory')
-parser.add_argument("--train_csv_path", required=True, type=str)
-parser.add_argument("--val_csv_path", required=True, type=str)
-parser.add_argument('--name', default='ft_ResNet50',
+parser.add_argument('--data_dir', default='../data', type=str, help='path to the dataset root directory')
+
+parser.add_argument("--train_csv_path", default='../data/(Cityflow)AIC21_Track2_ReID_full/AIC21_Track2_ReID/train_label_split_padded.csv', type=str)
+
+parser.add_argument("--val_csv_path", default='../data/(Cityflow)AIC21_Track2_ReID_full/AIC21_Track2_ReID/val_label_split_padded.csv', type=str)
+
+parser.add_argument('--name', default='benchmark_model',
                     type=str, help='output model name')
 
 parser.add_argument('--gpu_ids', default='0', type=str,
                     help='gpu_ids: e.g. 0  0,1,2  0,2')
 parser.add_argument('--tpu_cores', default=-1, type=int,
                     help="use TPU instead of GPU with the given number of cores (1 recommended if not too many cpus)")
-parser.add_argument('--num_workers', default=2, type=int)
-parser.add_argument('--warm_epoch', default=0, type=int,
+parser.add_argument('--num_workers', default=3, type=int)
+parser.add_argument('--warm_epoch', default=3, type=int, # te 3 parasti
                     help='the first K epoch that needs warm up (counted from start_epoch)')
-parser.add_argument('--total_epoch', default=60,
+parser.add_argument('--total_epoch', default=20,
                     type=int, help='total training epoch')
-parser.add_argument("--save_freq", default=5, type=int,
+parser.add_argument("--save_freq", default=1, type=int, #Originali bija 2
                     help="frequency of saving the model in epochs")
+# parser.add_argument("--checkpoint", default="vehicle_reid_repo/vehicle_reid/model/result5/net_20.pth", type=str,
+#                     help="Model checkpoint to load.")
 parser.add_argument("--checkpoint", default="", type=str,
                     help="Model checkpoint to load.")
+# parser.add_argument("--start_epoch", default=21, type=int,
+#                     help="Epoch to continue training from.")
 parser.add_argument("--start_epoch", default=0, type=int,
                     help="Epoch to continue training from.")
+
+
+
 
 parser.add_argument('--fp16', action='store_true',
                     help='Use mixed precision training. This will occupy less memory in the forward pass, and will speed up training in some architectures (Nvidia A100, V100, etc.)')
@@ -111,7 +120,7 @@ parser.add_argument('--instance', action='store_true',
                     help='use instance loss')
 parser.add_argument('--ins_gamma', default=32, type=int,
                     help='gamma for instance loss')
-parser.add_argument('--triplet', action='store_true',
+parser.add_argument('--triplet', default=True, action='store_true',
                     help='use triplet loss')
 parser.add_argument('--lifted', action='store_true',
                     help='use lifted loss')
@@ -122,6 +131,7 @@ parser.add_argument("--debug", action="store_true")
 parser.add_argument("--debug_period", type=int, default=100,
                     help="Print the loss and grad statistics for *this many* batches at a time.")
 opt = parser.parse_args()
+
 
 if opt.label_smoothing > 0.0 and version[0] < 1 or version[1] < 10:
     warnings.warn(
@@ -474,6 +484,15 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
 
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(
                 phase, epoch_loss.item(), epoch_acc.item()))
+            
+            with open("vehicle_reid_repo/vehicle_reid/automated_training/"+ opt.name +".txt", "a") as file:
+                # Write some lines to the file
+                file.write('{},{},{:.4f},{:.4f}\n'.format(
+                epoch, phase, epoch_loss.item(), epoch_acc.item()))
+            
+            #Šito aizkomentet pectam
+            print('{},{},{:.4f},{:.4f}\n'.format(
+                epoch, phase, epoch_loss.item(), epoch_acc.item()))
 
             y_loss[phase].append(epoch_loss)
             y_err[phase].append(1.0 - epoch_acc)
