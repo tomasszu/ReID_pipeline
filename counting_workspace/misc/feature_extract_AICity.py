@@ -9,7 +9,7 @@ from PIL import Image
 sys.path.append("vehicle_reid_repo2/")
 sys.path.append("..")
 #import vehicle_reid_repo2
-from vehicle_reid.load_model import load_model_from_opts
+from vehicle_reid.load_model_ModelArchChange import load_model_from_opts
 import matplotlib.pyplot as plt
 
 import counting_workspace.misc.lance_db_CLIP_AICity as l_db
@@ -108,7 +108,7 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
 
     # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
     # print(model)
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change1/net_10.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change3/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change3/net_10.pth", remove_classifier=True)
     #print(model)
     model.eval()
     model.to(device)
@@ -158,7 +158,7 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
 
     device = "cuda"
 
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change1/net_10.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change3/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change3/net_10.pth", remove_classifier=True)
     model.eval()
     model.to(device)
 

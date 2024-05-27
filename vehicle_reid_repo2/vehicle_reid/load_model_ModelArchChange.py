@@ -7,7 +7,7 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(SCRIPT_DIR)
 
-from model import ft_net, ft_net_dense, ft_net_hr, ft_net_swin, ft_net_efficient, ft_net_NAS, PCB
+from model_ModelArchChange_ForTrain import ft_net, ft_net_dense, ft_net_hr, ft_net_swin, ft_net_efficient, ft_net_NAS, PCB
 
 sys.path.remove(SCRIPT_DIR)
 
@@ -145,8 +145,8 @@ def load_model_from_opts(opts_file, ckpt=None, return_feature=False, remove_clas
     if ckpt:
         load_weights(model, ckpt)
     if remove_classifier:
-        #model.classifier.classifier = nn.Sequential()
+        model.classifier.classifier = nn.Sequential()
         #model.classifier.add_block = model.classifier.add_block[:-2]
-        model.classifier = nn.Sequential()
+        #model.classifier = nn.Sequential()
         model.eval()
     return model
