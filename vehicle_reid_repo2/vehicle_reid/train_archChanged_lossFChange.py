@@ -49,7 +49,7 @@ parser.add_argument("--train_csv_path", default='../data/(Cityflow)AIC21_Track2_
 
 parser.add_argument("--val_csv_path", default='../data/(Cityflow)AIC21_Track2_ReID_full/AIC21_Track2_ReID/val_label_split_padded.csv', type=str)
 
-parser.add_argument('--name', default='model_arch+loss_change',
+parser.add_argument('--name', default='model_arch_change4',
                     type=str, help='output model name')
 
 parser.add_argument('--gpu_ids', default='0', type=str,
