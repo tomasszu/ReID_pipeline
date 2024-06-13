@@ -29,16 +29,19 @@ def CustomTripletLoss(ff, labels, hard_pairs, margin=0.3):
     # labels - [32]
     # hard_pairs - list, anchor_indices, positive_indices ~ [6], negative_anchor_indices, negative_indices ~ [115]
     # print("FF")
-    # print(ff.shape)
+    # print(ff)
     # print("LABELS")
-    # print(labels.shape)
-    #print("HARD_PAIRS")
-    #print(anchor_indices.shape, positive_indices, negative_anchor_indices.shape, negative_indices)
+    # print(labels)
+    # print("HARD_PAIRS")
+    # print(anchor_indices.shape, positive_indices, negative_anchor_indices.shape, negative_indices)
 
     a_idx, p_idx, n_idx = convert_to_triplets(anchor_indices, positive_indices, negative_anchor_indices, negative_indices)
 
+    grad_fn_check = True if ff.grad_fn else False
+
     if len(a_idx) == 0:
-        return torch.zeros(1)
+        return torch.tensor(0.0, device=ff.device, requires_grad=grad_fn_check)
+    
 
     # Gather the anchor, positive, and negative samples based on the hard pairs
     anchors = ff[a_idx]
@@ -53,7 +56,5 @@ def CustomTripletLoss(ff, labels, hard_pairs, margin=0.3):
 
     # Compute the triplet loss
     losses = torch.relu(pos_distances - neg_distances + margin)
-
-    #print(losses)
     
     return torch.mean(losses)

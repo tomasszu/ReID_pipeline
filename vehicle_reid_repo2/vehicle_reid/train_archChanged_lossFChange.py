@@ -49,7 +49,7 @@ parser.add_argument("--train_csv_path", default='../data/(Cityflow)AIC21_Track2_
 
 parser.add_argument("--val_csv_path", default='../data/(Cityflow)AIC21_Track2_ReID_full/AIC21_Track2_ReID/val_label_split_padded.csv', type=str)
 
-parser.add_argument('--name', default='model_arch_change4',
+parser.add_argument('--name', default='model_arch+loss_change2',
                     type=str, help='output model name')
 
 parser.add_argument('--gpu_ids', default='0', type=str,
@@ -298,12 +298,12 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
     lastLayer_params = model.model.layer4.parameters()
     classifier_params = model.classifier.parameters()
     optimizer = optim_name([
-        {'params': base_params, 'initial_lr': 0.1 * opt.lr,
-         'lr': 0.1 * opt.lr},
+        {'params': base_params, 'initial_lr': 0.0 * opt.lr,
+         'lr': 0.0 * opt.lr},
         {'params': classifier_params, 'initial_lr': opt.lr,
          'lr': opt.lr},
-        {'params': lastLayer_params, 'initial_lr': 0.5 * opt.lr,
-         'lr': 0.5 * opt.lr},
+        {'params': lastLayer_params, 'initial_lr': 0.0 * opt.lr,
+         'lr': 0.0 * opt.lr},
     ], weight_decay=5e-4, momentum=0.9, nesterov=True)
 
     scheduler = lr_scheduler.StepLR(

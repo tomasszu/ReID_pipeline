@@ -447,15 +447,19 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
                         #<=========================================================================================>
                         #CUSTOM LOSS F INSERT
                         hard_pairs = miner(ff, labels)
+
+                        
+                        #loss += criterion_triplet(ff, labels, hard_pairs)
+                        print("Library loss f:")
+                        print(criterion_triplet(ff, labels, hard_pairs))                        
+                        
                         # /now_batch_size
                         print("Custom loss f:")
                         print(CustomTripletLoss(ff, labels, hard_pairs))
                         loss += CustomTripletLoss(ff, labels, hard_pairs)
 
                         
-                        #loss += criterion_triplet(ff, labels, hard_pairs)
-                        print("Library loss f:")
-                        print(CustomTripletLoss(ff, labels, hard_pairs))
+
                         #<=========================================================================================>
                     if opt.lifted:
                         loss += criterion_lifted(ff, labels)  # /now_batch_size
