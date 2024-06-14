@@ -53,7 +53,7 @@ parser.add_argument("--train_csv_path", default='../data/(Cityflow)AIC21_Track2_
 
 parser.add_argument("--val_csv_path", default='../data/(Cityflow)AIC21_Track2_ReID_full/AIC21_Track2_ReID/val_label_split_padded.csv', type=str)
 
-parser.add_argument('--name', default='model_arch+loss_change',
+parser.add_argument('--name', default='model_arch+loss_change3',
                     type=str, help='output model name')
 
 parser.add_argument('--gpu_ids', default='0', type=str,
@@ -63,17 +63,17 @@ parser.add_argument('--tpu_cores', default=-1, type=int,
 parser.add_argument('--num_workers', default=3, type=int)
 parser.add_argument('--warm_epoch', default=3, type=int, # te 3 parasti
                     help='the first K epoch that needs warm up (counted from start_epoch)')
-parser.add_argument('--total_epoch', default=50,
+parser.add_argument('--total_epoch', default=25,
                     type=int, help='total training epoch')
 parser.add_argument("--save_freq", default=1, type=int, #Originali bija 2
                     help="frequency of saving the model in epochs")
 # parser.add_argument("--checkpoint", default="vehicle_reid_repo/vehicle_reid/model/result5/net_20.pth", type=str,
 #                     help="Model checkpoint to load.")
-parser.add_argument("--checkpoint", default="", type=str,
+parser.add_argument("--checkpoint", default="vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change3/net_14.pth", type=str,
                     help="Model checkpoint to load.")
 # parser.add_argument("--start_epoch", default=21, type=int,
 #                     help="Epoch to continue training from.")
-parser.add_argument("--start_epoch", default=0, type=int,
+parser.add_argument("--start_epoch", default=15, type=int,
                     help="Epoch to continue training from.")
 
 
@@ -289,9 +289,6 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
         scaler = amp.GradScaler()
         autocast = amp.autocast()
 
-    #print(model)
-    pass
-
     # create optimizer and scheduler
     optim_name = optim.SGD
 
@@ -450,12 +447,12 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
 
                         
                         #loss += criterion_triplet(ff, labels, hard_pairs)
-                        print("Library loss f:")
-                        print(criterion_triplet(ff, labels, hard_pairs))                        
+                        # print("Library loss f:")
+                        # print(criterion_triplet(ff, labels, hard_pairs))                        
                         
                         # /now_batch_size
-                        print("Custom loss f:")
-                        print(CustomTripletLoss(ff, labels, hard_pairs))
+                        # print("Custom loss f:")
+                        # print(CustomTripletLoss(ff, labels, hard_pairs))
                         loss += CustomTripletLoss(ff, labels, hard_pairs)
 
                         
