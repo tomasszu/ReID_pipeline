@@ -29,6 +29,7 @@ from pytorch_metric_learning import losses, miners
 #CUSTOM LOSS FUNCTION IMPORT
 
 from customFunctions.CustomTripletLoss import CustomTripletLoss
+from customFunctions.CustomMiner import customTripletMiner
 
 version = list(map(int, torch.__version__.split(".")[:2]))
 torchvision_version = list(map(int, torchvision.__version__.split(".")[:2]))
@@ -445,10 +446,10 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
                         
                         #CUSTOM MINER INSERT
                         print("Library miner:______________________________________")
-                        print("Labels:")
-                        print(labels)
                         hard_pairs = miner(ff, labels)
                         print(hard_pairs)
+
+                        customTripletMiner(ff, labels)
 
 
 
