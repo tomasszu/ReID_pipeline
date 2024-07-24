@@ -446,23 +446,23 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
                         
                         #CUSTOM MINER INSERT
                         # print("Library miner:______________________________________")
-                        # hard_pairs = miner(ff, labels)
+                        hard_pairs = miner(ff, labels)
                         # print(hard_pairs)
 
                         # print("Custom miner:______________________________________")
-                        hard_pairs = customTripletMiner(ff, labels)
+                        # hard_pairs = customTripletMiner(ff, labels)
                         # print(hard_pairs)
 
                         
                         #CUSTOM LOSS F INSERT
                                                 
-                        #loss += criterion_triplet(ff, labels, hard_pairs)
+                        loss += criterion_triplet(ff, labels, hard_pairs)
                         # print("Library loss f:")
                         # print(criterion_triplet(ff, labels, hard_pairs))                        
                         
                         # print("Custom loss f:")
                         # print(CustomTripletLoss(ff, labels, hard_pairs))
-                        loss += CustomTripletLoss(ff, labels, hard_pairs)
+                        # loss += CustomTripletLoss(ff, labels, hard_pairs)
 
                         
 
@@ -605,7 +605,6 @@ def save_network(network, epoch_label):
 ######################################################################
 # Save opts and load model
 # ---------------------------
-
 
 dir_name = os.path.join(SCRIPT_DIR, "model", name)
 if not os.path.isdir(dir_name):
