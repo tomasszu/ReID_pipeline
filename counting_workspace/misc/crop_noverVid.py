@@ -7,6 +7,11 @@ sequence_name = "EDI_WebCam"
 
 def crop_from_bbox(frame, track_id_name, xyxy, folder):
     x1, y1, x2, y2 = xyxy[0], xyxy[1], xyxy[2], xyxy[3]
+    if(min(x1, y1, x2, y2) < 1):
+        if x1 < 0: x1 = 1
+        if x2 < 0: x2 = 1
+        if y1 < 0: y1 = 1
+        if y2 < 0: y2 = 1
     cropped_img = frame[y1:y2, x1:x2]
     #cv2.imshow('image',cropped_img)
 
@@ -22,6 +27,12 @@ def crop_from_bbox(frame, track_id_name, xyxy, folder):
     file_name = os.path.join(directory_path, f'id_{track_id_name}.jpg')
         
     if(os.path.exists(file_name) is False):
-        if(min(x1, y1, x2, y2) > 0):
+        # if(min(x1, y1, x2, y2) > 0):
             cv2.imwrite(file_name, cropped_img)
+        # else:
+        #     if x1 < 0: x1 = 1
+        #     if x2 < 0: x2 = 1
+        #     if y1 < 0: y1 = 1
+        #     if y2 < 0: y2 = 1
+        #     cv2.imwrite(file_name, cropped_img)
     #cv2.waitKey(0)

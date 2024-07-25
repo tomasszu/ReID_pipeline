@@ -45,11 +45,11 @@ from dataset import ImageDataset, BatchSampler
 parser = argparse.ArgumentParser(description='Training')
 parser.add_argument('--data_dir', default='../data', type=str, help='path to the dataset root directory')
 
-parser.add_argument("--train_csv_path", default='../data/(Cityflow)AIC21_Track2_ReID_full/AIC21_Track2_ReID/train_label_split_padded.csv', type=str)
+parser.add_argument("--train_csv_path", default='/home/tomass/tomass/data/VRIC/vric_train.csv', type=str)
 
-parser.add_argument("--val_csv_path", default='../data/(Cityflow)AIC21_Track2_ReID_full/AIC21_Track2_ReID/val_label_split_padded.csv', type=str)
+parser.add_argument("--val_csv_path", default='/home/tomass/tomass/data/VRIC/vric_val.csv', type=str)
 
-parser.add_argument('--name', default='benchmark_model',
+parser.add_argument('--name', default='vric_unmodified',
                     type=str, help='output model name')
 
 parser.add_argument('--gpu_ids', default='0', type=str,
@@ -485,7 +485,7 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(
                 phase, epoch_loss.item(), epoch_acc.item()))
             
-            with open("vehicle_reid_repo/vehicle_reid/automated_training/"+ opt.name +".txt", "a") as file:
+            with open("vehicle_reid_repo2/vehicle_reid/automated_training/"+ opt.name +".txt", "a") as file:
                 # Write some lines to the file
                 file.write('{},{},{:.4f},{:.4f}\n'.format(
                 epoch, phase, epoch_loss.item(), epoch_acc.item()))
