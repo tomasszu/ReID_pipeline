@@ -35,10 +35,10 @@ def load_weights(model, ckpt_path):
     return model
 
 
-def create_model(n_classes, kind="resnet", **kwargs):
+def create_model(n_classes, device = "cuda", kind="resnet", **kwargs):
     """Creates a model of a given kind and number of classes"""
     if kind == "resnet":
-        return ft_net(n_classes, **kwargs)
+        return ft_net(n_classes, device=device, **kwargs)
     elif kind == "densenet":
         return ft_net_dense(n_classes, **kwargs)
     elif kind == "hr":
@@ -84,7 +84,7 @@ def load_model(n_classes, kind="resnet", ckpt=None, remove_classifier=False, **k
     return model
 
 
-def load_model_from_opts(opts_file, ckpt=None, return_feature=False, remove_classifier=False):
+def load_model_from_opts(opts_file, ckpt=None, return_feature=False, remove_classifier=False, device="cuda"):
     """Loads a saved model by reading its opts.yaml file.
 
     Parameters
@@ -118,7 +118,7 @@ def load_model_from_opts(opts_file, ckpt=None, return_feature=False, remove_clas
     mixstyle = opts.get("mixstyle", False)
 
     if model_type in ("resnet", "resnet_ibn"):
-        model = create_model(n_classes, "resnet", droprate=droprate, ibn=(model_type == "resnet_ibn"),
+        model = create_model(n_classes, device, "resnet", droprate=droprate, ibn=(model_type == "resnet_ibn"),
                              stride=stride, circle=return_feature, linear_num=linear_num,
                              model_subtype=model_subtype, mixstyle=mixstyle)
     elif model_type == "densenet":
@@ -145,8 +145,10 @@ def load_model_from_opts(opts_file, ckpt=None, return_feature=False, remove_clas
     if ckpt:
         load_weights(model, ckpt)
     if remove_classifier:
+        #print(model)
         model.classifier.classifier = nn.Sequential()
         model.classifier.add_block = model.classifier.add_block[:-2]
+        #print(model)
         #model.classifier = nn.Sequential()
         model.eval()
     return model

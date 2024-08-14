@@ -15,7 +15,7 @@ import sys
 
 import counting_workspace.misc.crop_noverVid as detection_crop
 #No CLIP
-import counting_workspace.misc.feature_extract_AICity_noClassifier as fExtract
+import counting_workspace.misc.feature_extract_AICity as fExtract
 #With CLIP
 # import counting_workspace.misc.feature_extract_AICity_CLIP as fExtract
 #For ModelArchChange - removing all classification head
@@ -159,7 +159,6 @@ def zone_of_point(zones, point):
 
 def filter_for_crop_zones(frame, croppable_detections, zone_of_detections):
     
-    print(zone_of_detections)
     center_points = [] #center points of detections
     croppable_detections_filtered = []
 
@@ -324,14 +323,14 @@ for frame_nr in range(max_len_frames):
     #print(seen_vehicle_ids)
 
     #Show
-    if ret1:
-        resized = cv2.resize(labeled_frame1, (1120, 840))
-        cv2.imshow("frame1", resized)
+    # if ret1:
+    #     resized = cv2.resize(labeled_frame1, (1120, 840))
+    #     cv2.imshow("frame1", resized)
 
-    if ret2:
-        resized2 = cv2.resize(labeled_frame2, (1120, 840))
-        cv2.imshow("frame2", resized2)
-        cv2.waitKey(0)
+    # if ret2:
+    #     resized2 = cv2.resize(labeled_frame2, (1120, 840))
+    #     cv2.imshow("frame2", resized2)
+    #     cv2.waitKey(0)
 
     #Record
     # if ret1:

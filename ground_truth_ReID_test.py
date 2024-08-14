@@ -29,29 +29,38 @@ saving_mode = 3
 
 total_iters = 0
 accumulative_accuracy = 0
+accumulative_top1 = 0
 
 def results(results_map):
     frame_findings = len(results_map)
     if(frame_findings):
         frame_accuracy = 0
+        top1_acc = 0
         for result in results_map:
             id1, id2, distance = result
             if(id1 != id2):
                 frame_accuracy += 0
             else:
                 frame_accuracy += (1 - distance)
+                top1_acc += 1
         if(frame_accuracy > 0):
             frame_accuracy = frame_accuracy / frame_findings
+            top1_acc = top1_acc / frame_findings
         print("Frame accuracy: ", frame_accuracy, "Out of: ", frame_findings, " frame findings" )
         global total_iters
         total_iters += 1
         global accumulative_accuracy
+        global accumulative_top1
         accumulative_accuracy += frame_accuracy
+        accumulative_top1 += top1_acc
         if(accumulative_accuracy != 0 and total_iters != 0):
             total_accuracy = accumulative_accuracy / total_iters
+            total_top1_acc = accumulative_top1 / total_iters
         else:
             total_accuracy = 0
+            total_top1_acc = 0
         print("Total accuracy: ", total_accuracy, "Out of: ", total_iters, " frames" )
+        print("(Total top1 accuracy: ", total_top1_acc, "Out of: ", total_iters, " frames)" )
 
 
 def xywh_to_xyxy(bbox):
@@ -229,6 +238,21 @@ seen_vehicle_ids = []
 
 zone_of_detections = {}
 
+# Define video writer to save the output video
+output_video_file1 = "output_vids/AICITYDEMO_cam1.mp4"
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+fps1 = video1.get(cv2.CAP_PROP_FPS)
+frame_width = 1120  # Desired frame width
+frame_height = 840  # Desired frame height
+out1 = cv2.VideoWriter(output_video_file1, fourcc, fps1, (1280, 720))
+
+output_video_file2 = "output_vids/AICITYDEMO_cam2.mp4"
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+fps2 = video2.get(cv2.CAP_PROP_FPS)
+frame_width = 1120  # Desired frame width
+frame_height = 840  # Desired frame height
+out2 = cv2.VideoWriter(output_video_file2, fourcc, fps2, (1280, 720))
+
 
 for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
     frame_nr +=1
@@ -283,15 +307,25 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
 
     #print(seen_vehicle_ids)
 
+    # resized = cv2.resize(labeled_frame1, (1280, 720))
+    # cv2.imshow("frame1", resized)
+
+    # resized2 = cv2.resize(labeled_frame2, (1280, 720))
+    # cv2.imshow("frame2", resized2)
+    # cv2.waitKey(0)
+
+    #Record
     resized = cv2.resize(labeled_frame1, (1280, 720))
-    cv2.imshow("frame1", resized)
+    out1.write(resized)
 
     resized2 = cv2.resize(labeled_frame2, (1280, 720))
-    cv2.imshow("frame2", resized2)
-    cv2.waitKey(0)
+    out2.write(resized2)
 
 video1.release()
 file1.close()
 
 video2.release()
 file2.close()
+
+out1.release()
+out2.release()

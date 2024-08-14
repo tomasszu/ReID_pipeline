@@ -70,13 +70,15 @@ class ClassBlock(nn.Module):
 # Define the ResNet50-based Model
 class ft_net(nn.Module):
 
-    def __init__(self, class_num=751, droprate=0.5, stride=2, circle=False, ibn=False, linear_num=512,
+    def __init__(self, class_num=751, device="cuda", droprate=0.5, stride=2, circle=False, ibn=False, linear_num=512,
                  model_subtype="50", mixstyle=True):
         super(ft_net, self).__init__()
         if model_subtype in ("50", "default"):
             if ibn:
                 model_ft = torch.hub.load(
                     'XingangPan/IBN-Net', 'resnet50_ibn_a', pretrained=True)
+                #print("PRINT ",device)
+                #model_ft = model_ft.to(torch.device(""device""))
             else:
                 model_ft = models.resnet50(weights="IMAGENET1K_V2")
         elif model_subtype == "101":

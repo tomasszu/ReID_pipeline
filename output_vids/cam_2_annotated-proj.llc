@@ -1,0 +1,14 @@
+{
+  version: 1,
+  mediaFileName: 'cam_2_annotated.mp4',
+  cutSegments: [
+    {
+      end: 94.58583152173914,
+      name: '',
+    },
+    {
+      start: 94.58583152173914,
+      name: '',
+    },
+  ],
+}

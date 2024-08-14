@@ -43,13 +43,13 @@ from dataset import ImageDataset, BatchSampler
 # Options
 # --------
 parser = argparse.ArgumentParser(description='Training')
-parser.add_argument('--data_dir', default='../data', type=str, help='path to the dataset root directory')
+parser.add_argument('--data_dir', default='/home/tomass/tomass/data', type=str, help='path to the dataset root directory')
 
-parser.add_argument("--train_csv_path", default='/home/tomass/tomass/data/VRIC/vric_train.csv', type=str)
+parser.add_argument("--train_csv_path", default='/home/tomass/tomass/data/VRIC_VehicX/VRIC+VehicX_train.csv', type=str)
 
-parser.add_argument("--val_csv_path", default='/home/tomass/tomass/data/VRIC/vric_val.csv', type=str)
+parser.add_argument("--val_csv_path", default='/home/tomass/tomass/data/VRIC_VehicX/VRIC+VehicX_val.csv', type=str)
 
-parser.add_argument('--name', default='vric_unmodified',
+parser.add_argument('--name', default='vric+vehixlex_unmodified',
                     type=str, help='output model name')
 
 parser.add_argument('--gpu_ids', default='0', type=str,
@@ -59,17 +59,16 @@ parser.add_argument('--tpu_cores', default=-1, type=int,
 parser.add_argument('--num_workers', default=3, type=int)
 parser.add_argument('--warm_epoch', default=3, type=int, # te 3 parasti
                     help='the first K epoch that needs warm up (counted from start_epoch)')
-parser.add_argument('--total_epoch', default=20,
+parser.add_argument('--total_epoch', default=40,
                     type=int, help='total training epoch')
 parser.add_argument("--save_freq", default=1, type=int, #Originali bija 2
                     help="frequency of saving the model in epochs")
 # parser.add_argument("--checkpoint", default="vehicle_reid_repo/vehicle_reid/model/result5/net_20.pth", type=str,
 #                     help="Model checkpoint to load.")
-parser.add_argument("--checkpoint", default="", type=str,
-                    help="Model checkpoint to load.")
+parser.add_argument("--checkpoint", default="vehicle_reid_repo2/vehicle_reid/model/vric+vehixlex_unmodified/net_19.pth")
 # parser.add_argument("--start_epoch", default=21, type=int,
 #                     help="Epoch to continue training from.")
-parser.add_argument("--start_epoch", default=0, type=int,
+parser.add_argument("--start_epoch", default=20, type=int,
                     help="Epoch to continue training from.")
 
 
