@@ -75,7 +75,7 @@ seen_vehicle_ids = []
 #_________________________________________________________________________________________#
 # Turn vehicles from camera y, z, ... (gallery cameras) into embeddings and save in DB:
 
-for index, row in file1.iterrows():
+for index, row in file3.iterrows():
     image_path = row['path']  # Get the image path
     vehicle_id = row['ID']     # Get the vehicle ID
 
@@ -86,7 +86,7 @@ for index, row in file1.iterrows():
     
     fExtract.save_image_to_lance_db(image_path, vehicle_id, 1, saving_mode)
 
-for index, row in file3.iterrows():
+for index, row in file1.iterrows():
     image_path = row['path']  # Get the image path
     vehicle_id = row['ID']     # Get the vehicle ID
 
