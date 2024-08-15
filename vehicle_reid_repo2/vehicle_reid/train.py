@@ -46,10 +46,13 @@ from dataset import ImageDataset, BatchSampler
 # --------
 parser = argparse.ArgumentParser(description='Training')
 parser.add_argument('--data_dir', default='/home/tomass/tomass/data', type=str, help='path to the dataset root directory')
+#parser.add_argument('--data_dir', default='/home/toms.zinars/tomass/data', type=str, help='path to the dataset root directory')
 
 parser.add_argument("--train_csv_path", default='/home/tomass/tomass/data/VeRi/VeRi_train.csv', type=str)
+#parser.add_argument("--train_csv_path", default='/home/toms.zinars/tomass/data/VeRi_VehicX/VeRi+VehicX_train.csv', type=str)
 
 parser.add_argument("--val_csv_path", default='/home/tomass/tomass/data/VeRi/VeRi_val.csv', type=str)
+#parser.add_argument("--val_csv_path", default='/home/toms.zinars/tomass/data/VeRi_VehicX/VeRi+VehicX_val.csv', type=str)
 
 parser.add_argument('--name', default='veri_unmodified',
                     type=str, help='output model name')
