@@ -8,7 +8,7 @@ import os
 
 import counting_workspace.misc.crop_AICity as detection_crop
 #No CLIP
-import counting_workspace.misc.feature_extract_AICity as fExtract
+import counting_workspace.misc.feature_extract_AICity_2models_ModelArchChange_ForInfer as fExtract
 #With CLIP
 # import counting_workspace.misc.feature_extract_AICity_CLIP as fExtract
 #For ModelArchChange - removing all classification head
@@ -41,7 +41,7 @@ def results(results_map):
         if(frame_accuracy > 0):
             frame_accuracy = frame_accuracy / frame_findings
             top1_acc = top1_acc / frame_findings
-        print("Frame accuracy: ", frame_accuracy, "Out of: ", frame_findings, " frame findings" )
+        print("Frame precision: ", frame_accuracy, "Out of: ", frame_findings, " frame findings" )
         global total_iters
         total_iters += 1
         global accumulative_accuracy
@@ -54,14 +54,16 @@ def results(results_map):
         else:
             total_accuracy = 0
             total_top1_acc = 0
-        print("Total accuracy: ", total_accuracy, "Out of: ", total_iters, " frames" )
-        print("(Total top1 accuracy: ", total_top1_acc, "Out of: ", total_iters, " frames)" )
+
+        print("Accuracy: ", total_top1_acc, "Out of: ", total_iters, " frames" )
+        print("(Accuracy*Confidence: ", total_accuracy, "Out of: ", total_iters, " frames)" )
 
 data_dir = '/home/tomass/tomass/data'
 
 ground_truths_path_1 = "/home/tomass/tomass/data/EDI_Cam_testData/cam1.csv"
 
 ground_truths_path_2 = "/home/tomass/tomass/data/EDI_Cam_testData/cam2.csv"
+
 
 ground_truths_path_3 = "/home/tomass/tomass/data/EDI_Cam_testData/cam3.csv"
 
@@ -70,12 +72,12 @@ file1 = pd.read_csv(ground_truths_path_1)
 file2 = pd.read_csv(ground_truths_path_2)
 file3 = pd.read_csv(ground_truths_path_3)
 
-seen_vehicle_ids = []
+seen_vehicle_ids = [20]
 
 #_________________________________________________________________________________________#
 # Turn vehicles from camera y, z, ... (gallery cameras) into embeddings and save in DB:
 
-for index, row in file3.iterrows():
+for index, row in file1.iterrows():
     image_path = row['path']  # Get the image path
     vehicle_id = row['ID']     # Get the vehicle ID
 
@@ -86,7 +88,7 @@ for index, row in file3.iterrows():
     
     fExtract.save_image_to_lance_db(image_path, vehicle_id, 1, saving_mode)
 
-for index, row in file1.iterrows():
+for index, row in file2.iterrows():
     image_path = row['path']  # Get the image path
     vehicle_id = row['ID']     # Get the vehicle ID
 
@@ -100,7 +102,7 @@ for index, row in file1.iterrows():
 # _____________________________________________________________________________________#
 # Turn vehicles from camera x (query camera) into embeddings and search in DB:
 
-for index, row in file2.iterrows():
+for index, row in file3.iterrows():
     image_path = row['path']  # Get the image path
     vehicle_id = row['ID']     # Get the vehicle ID
 

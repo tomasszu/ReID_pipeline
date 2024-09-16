@@ -6,12 +6,6 @@ from vectordb import InMemoryExactNNVectorDB, HNSWVectorDB
 
 import counting_workspace.misc.lance_db_init as create_db
 
-
-class Vehicles(BaseDoc):
-  vehicle_id: str = ''
-  embedding: NdArray[512]
-
-
 def add_vehicle(vehicle_id, embedding, intersection, db):
   
   tbl = db.open_table(intersection)

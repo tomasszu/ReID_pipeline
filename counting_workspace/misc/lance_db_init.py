@@ -4,7 +4,7 @@ import pyarrow as pa
 SCHEMA = pa.schema(
   [
       pa.field("vehicle_id", pa.string()),
-      pa.field("vector", pa.list_(pa.float32(), 512)),
+      pa.field("vector", pa.list_(pa.float32(), 1024)),
       pa.field("times_summed", pa.int8()),
   ])
 
