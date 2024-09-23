@@ -1,0 +1,1 @@
+ python3 vehicle_reid_repo/vehicle_reid/train.py --data_dir=../data --name=result --train_csv_path=../data/VRIC/vric_train.csv --val_csv_path=../data/VRIC/vric_val.csv --batchsize=16 --total_epoch=20 --warm_epoch=3 --save_freq=1 --erasing_p=0.5 --triplet

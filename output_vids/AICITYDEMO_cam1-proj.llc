@@ -1,0 +1,11 @@
+{
+  version: 1,
+  mediaFileName: 'AICITYDEMO_cam1.mp4',
+  cutSegments: [
+    {
+      start: 3.5681249999999998,
+      end: 17.912708333333335,
+      name: '',
+    },
+  ],
+}
