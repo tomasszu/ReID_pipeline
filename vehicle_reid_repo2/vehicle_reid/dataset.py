@@ -43,7 +43,7 @@ class ImageDataset(Dataset):
         if self.target_transform:
             label = self.target_transform(label)
         return image, label
-
+    
 
 class BatchSampler:
     def __init__(self, dataset, batch_size, samples_per_class, drop_last=True):
@@ -57,6 +57,7 @@ class BatchSampler:
 
     def __iter__(self):
         ids = self.dataset.df[self.dataset.target_label]
+        #print(ids)
         ids = ids.sample(frac=1.0)
         samples_for_id = {}
         for idx, cls in ids.items():

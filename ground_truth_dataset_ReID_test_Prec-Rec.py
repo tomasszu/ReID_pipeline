@@ -23,7 +23,6 @@ saving_mode = 3
 
 total_iters = 0
 accumulative_accuracy = 0
-accumulative_top1 = 0
 
 # Initialize global variables for macro and micro averaging
 total_true_positives = 0
@@ -38,18 +37,20 @@ def results(results_map):
     frame_findings = len(results_map)
     if frame_findings:
         frame_accuracy = 0
-        top1_acc = 0
         frame_true_positives = 0
         frame_false_positives = 0
         frame_false_negatives = 0
+
+        # Increment total queries
+        global total_iters, accumulative_accuracy
+        total_iters += 1
 
         for result in results_map:
             id1, id2, distance = result
             
             # Update accuracy as before
             if id1 == id2:
-                frame_accuracy += (1 - distance)
-                top1_acc += 1
+                accumulative_accuracy += 1
                 frame_true_positives += 1
             else:
                 frame_false_positives += 1
@@ -70,13 +71,7 @@ def results(results_map):
 
         if frame_accuracy > 0:
             frame_accuracy /= frame_findings
-            top1_acc /= frame_findings
 
-        # Update global accumulative metrics
-        global total_iters, accumulative_accuracy, accumulative_top1
-        total_iters += 1
-        accumulative_accuracy += frame_accuracy
-        accumulative_top1 += top1_acc
 
         # Update micro-averaged precision and recall
         global total_true_positives, total_false_positives, total_false_negatives
@@ -122,17 +117,7 @@ def results(results_map):
             macro_recall = 0
 
         # Output results
-        print("Frame precision: ", frame_accuracy, "Out of: ", frame_findings, " frame findings" )
-        
-        if accumulative_accuracy != 0 and total_iters != 0:
-            total_accuracy = accumulative_accuracy / total_iters
-            total_top1_acc = accumulative_top1 / total_iters
-        else:
-            total_accuracy = 0
-            total_top1_acc = 0
-
-        print("Accuracy: ", total_top1_acc, "Out of: ", total_iters, " frames" )
-        print("(Accuracy*Confidence: ", total_accuracy, "Out of: ", total_iters, " frames)" )
+        print("Rank-1 accuracy: ",accumulative_accuracy/total_iters )
         
         print("Micro Precision|Micro Recall|Macro Precision|Macro Recall")
         print(micro_precision,"         ",micro_recall,"        ",macro_precision,"         ",macro_recall)
@@ -160,7 +145,7 @@ seen_vehicle_ids = [20]
 #_________________________________________________________________________________________#
 # Turn vehicles from camera y, z, ... (gallery cameras) into embeddings and save in DB:
 
-for index, row in file2.iterrows():
+for index, row in file1.iterrows():
     image_path = row['path']  # Get the image path
     vehicle_id = row['ID']     # Get the vehicle ID
 
@@ -171,7 +156,7 @@ for index, row in file2.iterrows():
     
     fExtract.save_image_to_lance_db(image_path, vehicle_id, 1, saving_mode)
 
-for index, row in file3.iterrows():
+for index, row in file2.iterrows():
     image_path = row['path']  # Get the image path
     vehicle_id = row['ID']     # Get the vehicle ID
 
@@ -185,7 +170,7 @@ for index, row in file3.iterrows():
 # _____________________________________________________________________________________#
 # Turn vehicles from camera x (query camera) into embeddings and search in DB:
 
-for index, row in file1.iterrows():
+for index, row in file3.iterrows():
     image_path = row['path']  # Get the image path
     vehicle_id = row['ID']     # Get the vehicle ID
 

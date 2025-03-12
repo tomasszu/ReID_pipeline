@@ -4,6 +4,8 @@ import cv2
 import supervision as sv
 from ultralytics import YOLO
 
+import time
+
 #basics
 import pandas as pd
 import numpy as np
@@ -14,7 +16,7 @@ import copy
 
 import counting_workspace.misc.crop_AICity as detection_crop
 #No CLIP
-import counting_workspace.misc.feature_extract_AICity_noClassifier as fExtract
+import counting_workspace.misc.feature_extract_AICity as fExtract
 #With CLIP
 # import counting_workspace.misc.feature_extract_AICity_CLIP as fExtract
 #For ModelArchChange - removing all classification head
@@ -30,6 +32,8 @@ saving_mode = 3
 total_iters = 0
 accumulative_accuracy = 0
 accumulative_top1 = 0
+accumulative_top5 = 0
+accumulative_map = 0
 
 def results(results_map):
     frame_findings = len(results_map)
@@ -61,6 +65,72 @@ def results(results_map):
             total_top1_acc = 0
         print("Total accuracy: ", total_accuracy, "Out of: ", total_iters, " frames" )
         print("(Total top1 accuracy: ", total_top1_acc, "Out of: ", total_iters, " frames)" )
+
+def results_for_Ranking(results_map):
+    frame_findings = len(results_map)
+    if frame_findings == 0:
+        print("No results found.")
+        return
+
+    frame_accuracy = 0
+    top1_acc = 0
+    top5_acc = 0
+    total_ap = 0  # Sum of APs for mAP
+
+    for result in results_map:
+        id1, retrieved_results, distances = result  # `retrieved_results` is the full ranked list
+        retrieved_results = np.stack((retrieved_results,distances), axis=1)
+        #print(retrieved_results)
+
+        correct_indices = [i for i, res in enumerate(retrieved_results) if int(res[0]) == int(id1)]
+
+        # Rank-1 accuracy: check if the first result is correct
+        if correct_indices:
+            frame_accuracy += 1 - retrieved_results[correct_indices[0]][1]
+            top1_acc += 1 if correct_indices[0] == 0 else 0
+            top5_acc += 1 if min(correct_indices) < 5 else 0
+
+            # Compute Average Precision (AP)
+            ap = 0
+            for rank, correct_idx in enumerate(correct_indices, start=1):
+                precision_at_k = rank / (correct_idx + 1)  # Precision at this rank
+                ap += precision_at_k
+            ap /= len(correct_indices)  # Average Precision for this query
+            total_ap += ap
+        else:
+            frame_accuracy += 0  # No correct match found
+
+    # Compute averages
+    frame_accuracy /= frame_findings
+    top1_acc /= frame_findings
+    top5_acc /= frame_findings
+    mean_ap = total_ap / frame_findings if frame_findings > 0 else 0  # Mean Average Precision
+
+    # Print results
+    print(f"Frame accuracy: {frame_accuracy:.4f} Out of {frame_findings} frame findings")
+    print(f"Rank-1 Accuracy: {top1_acc:.4f}")
+    print(f"Rank-5 Accuracy: {top5_acc:.4f}")
+    print(f"mAP: {mean_ap:.4f}")
+
+    # Accumulate total statistics
+    global total_iters, accumulative_accuracy, accumulative_top1, accumulative_top5, accumulative_map
+    total_iters += 1
+    accumulative_accuracy += frame_accuracy
+    accumulative_top1 += top1_acc
+    accumulative_top5 += top5_acc
+    accumulative_map += mean_ap
+
+    # Compute total averages
+    total_accuracy = accumulative_accuracy / total_iters
+    total_top1_acc = accumulative_top1 / total_iters
+    total_top5_acc = accumulative_top5 / total_iters
+    total_map = accumulative_map / total_iters
+
+    print(f"Total accuracy: {total_accuracy:.4f} Out of {total_iters} frames")
+    print(f"Total Rank-1 Accuracy: {total_top1_acc:.4f}")
+    print(f"Total Rank-5 Accuracy: {total_top5_acc:.4f}")
+    print(f"Total mAP: {total_map:.4f}")
+
 
 
 def xywh_to_xyxy(bbox):
@@ -256,6 +326,7 @@ out2 = cv2.VideoWriter(output_video_file2, fourcc, fps2, (1280, 720))
 
 for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
     frame_nr +=1
+    #start_time = time.time()
     # -------------------- INTERSECTION 1 -------------------------
     # reading frame from video
     _, frame1 = video1.read()
@@ -270,6 +341,9 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
         detection_crop.crop_from_bbox(frame1, detection[1], detection[2], 1) # (frame, vehID, bbox, intersectionNr)
         if detection[1] not in seen_vehicle_ids:
             seen_vehicle_ids.append(detection[1])
+
+    #duration = time.time() - start_time
+    #print(f"[t]Ground truth + Crop took {duration*1000:.2f} ms.")
 
     if(os.path.exists(intersection1_folder) and (not len(os.listdir(intersection1_folder)) == 0)):
         #fExtract.save_extractions_to_CSV(intersection_folder)
@@ -294,8 +368,9 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
         #fExtract.save_extractions_to_CSV(intersection_folder)
         #fExtract.save_extractions_to_vector_db(intersection_folder, intersection)
         #fExtractCLIP.save_extractions_to_lance_db(intersection_folder, intersection)
-        results_map = fExtract.compare_extractions_to_lance_db(intersection2_folder, 1)
-        results(results_map)
+        #results_map = fExtract.compare_extractions_to_lance_db(intersection2_folder, 1)  # Without mAP, Rank1, Rank5
+        results_map = fExtract.compare_extractions_to_lance_db_For_Rank(intersection2_folder, 1)  # With mAP, Rank1, Rank5
+        results_for_Ranking(results_map)
 
     
 
@@ -305,21 +380,26 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
     for i in images:
         os.remove(i)
 
+    if(total_iters == 626): break
+
     #print(seen_vehicle_ids)
 
-    # resized = cv2.resize(labeled_frame1, (1280, 720))
-    # cv2.imshow("frame1", resized)
-
-    # resized2 = cv2.resize(labeled_frame2, (1280, 720))
-    # cv2.imshow("frame2", resized2)
-    # cv2.waitKey(0)
-
-    #Record
     resized = cv2.resize(labeled_frame1, (1280, 720))
-    out1.write(resized)
+    cv2.imshow("frame1", resized)
 
     resized2 = cv2.resize(labeled_frame2, (1280, 720))
-    out2.write(resized2)
+    cv2.imshow("frame2", resized2)
+    cv2.waitKey(0)
+
+    #Record
+    # resized = cv2.resize(labeled_frame1, (1280, 720))
+    # out1.write(resized)
+
+    # resized2 = cv2.resize(labeled_frame2, (1280, 720))
+    # out2.write(resized2)
+
+# duration = time.time() - start_time
+# print(f"Test took {duration:.2f} seconds.")
 
 video1.release()
 file1.close()

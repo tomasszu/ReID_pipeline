@@ -7,8 +7,8 @@ import numpy as np
 import os
 
 import counting_workspace.misc.crop_AICity as detection_crop
-#No CLIP
-import counting_workspace.misc.feature_extract_AICity_2models_ModelArchChange_ForInfer as fExtract
+#Basic one model extraction, arch unchanged
+import counting_workspace.misc.feature_extract as fExtract
 #With CLIP
 # import counting_workspace.misc.feature_extract_AICity_CLIP as fExtract
 #For ModelArchChange - removing all classification head

@@ -1,3 +1,4 @@
+import time
 import numpy as np 
 import pandas as pd
 import os
@@ -10,10 +11,13 @@ sys.path.append("vehicle_reid_repo2/")
 sys.path.append("..")
 #import vehicle_reid_repo2
 #from vehicle_reid.load_model_ModelArchChange import load_model_from_opts
+# from vehicle_reid.load_model_ModelArchChange_ForInfer_partial import load_model_from_opts
 from vehicle_reid.load_model import load_model_from_opts
 import matplotlib.pyplot as plt
 
 import counting_workspace.misc.lance_db_CLIP_AICity as l_db
+
+from counting_workspace.misc.manual_feature_extraction import extract_manual_features
 
 
 
@@ -28,6 +32,18 @@ data_transforms = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
+# Function to print memory usage on the GPU
+def print_gpu_memory():
+    if torch.cuda.is_available():
+        print("VRAM USAGE -------------------------------------------------------------")
+        # Report GPU memory allocated by tensors
+        print(f"Memory allocated: {torch.cuda.memory_allocated() / (1024 ** 2):.2f} MB")
+
+        # Report GPU memory reserved (includes fragmentation and cached memory)
+        print(f"Memory reserved: {torch.cuda.memory_reserved() / (1024 ** 2):.2f} MB")
+
+        # Report the maximum memory allocated (useful for peak usage during inference)
+        print(f"Max memory allocated: {torch.cuda.max_memory_allocated() / (1024 ** 2):.2f} MB")
 
 
 def fliplr(img):
@@ -107,14 +123,18 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
 
     device = "cuda"
 
-    # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
-    # print(model)
-    #model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_22.pth", remove_classifier=True)
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/vric+veri_unmodified/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/vric+veri_unmodified/net_15.pth", remove_classifier=True)
+    # start_time = time.time()
 
-    #print(model)
-    model.eval()
-    model.to(device)
+    if not 'model' in globals():
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
+        # print(model)
+        #model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_22.pth", remove_classifier=True)
+        global model
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+
+        #print(model)
+        model.eval()
+        model.to(device)
 
     extractables_folder = folder_path
     extractable_images = os.listdir(extractables_folder)
@@ -130,6 +150,10 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
 
     features_array = np.array(features)
 
+    # duration = time.time() - start_time
+    #print(f"[t]Load model + extract features took {duration*1000:.2f} ms.")
+    # start_time = time.time()
+
     #print(f"features_array: {features_array}")
 
     db = create_db._init_(folder_name)
@@ -140,8 +164,12 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
         #print(f"embedding: {embedding}")
         if (saving_mode == 0) or (saving_mode == 2):
             update_vehicle(image_id, embedding, folder_name, db)
+            # duration = time.time() - start_time
+            # print(f"[t]Update vehicle in db took {duration*1000:.2f} ms.")
         elif (saving_mode == 1) or (saving_mode == 3):
             add_vehicle(image_id, embedding, folder_name, db)
+            # duration = time.time() - start_time
+            # print(f"[t]Add vehicle in db took {duration*1000:.2f} ms.")
         #print(f" {image_name} Embedding saved to vector_db.")
         os.remove(folder_path + image_name)
         #print(f" {image_name} deleted from folder")
@@ -161,11 +189,21 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
 
     device = "cuda"
 
+    # start_time = time.time()
+
     #model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_22.pth", remove_classifier=True)
 
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_unmodified/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_unmodified/net_39.pth", remove_classifier=True)
-    model.eval()
-    model.to(device)
+    if not 'model' in globals():
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
+        # print(model)
+        #model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_22.pth", remove_classifier=True)
+        global model
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+
+        #print(model)
+        model.eval()
+        model.to(device)
+
 
     extractables_folder = folder_path
     extractable_images = os.listdir(extractables_folder)
@@ -179,6 +217,10 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
     ReIDfeatures_array = np.array(ReIDfeatures)
 
     #print(f"features_array: {features_array}")
+
+    # duration = time.time() - start_time
+    # print(f"[t]Load model + extract features took {duration*1000:.2f} ms.")
+    # start_time = time.time()
 
     db = create_db._init_(queried_folder_name)
 
@@ -205,8 +247,65 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
                 id = result['vehicle_id']
                 distance = result['_distance']
                 print(f"{id} [{distance}%]")
+    
+    # duration = time.time() - start_time
+    # print(f"[t]query vehicle in db took {duration*1000:.2f} ms.")
+
+    #print("results map")
+    #print(results_map)
 
     return results_map
+
+def compare_extractions_to_lance_db_For_Rank(folder_path, queried_folder_name):
+    import numpy as np
+    import re
+    import counting_workspace.misc.lance_db_init as create_db
+
+    import numpy as np
+    import lancedb
+
+    device = "cuda"
+
+    # start_time = time.time()
+
+    #model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_22.pth", remove_classifier=True)
+
+    global model
+    if not 'model' in globals():
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", 
+                                     ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", 
+                                     remove_classifier=True)
+        model.eval()
+        model.to(device)
+
+
+    extractable_images = os.listdir(folder_path)
+    ReIDimages = [Image.open(folder_path + x) for x in extractable_images]
+    ReIDX_images = torch.stack(tuple(map(data_transforms, ReIDimages))).to(device)
+
+    ReIDfeatures = torch.stack([extract_feature(model, X) for X in ReIDX_images]).detach().cpu().numpy()
+
+    print("From intersection 2. -> 1. :")
+    results_map = []
+    for image_name, embedding in zip(extractable_images, ReIDfeatures):
+        image_id = re.sub(r'[^0-9]', '', image_name)  # Extract numerical ID
+        print("-------------------------------")
+        print(f"{image_id} found as ->  \n")
+
+        # Query top-n results that have cosinus similarity distance <= 0.50
+        results = l_db.query_for_IDs(embedding, queried_folder_name, limit=100)
+        results = [r for r in results if r['_distance'] <= 0.5]
+        
+        if results and results != -1:
+            retrieved_ids = [int(result['vehicle_id']) for result in results]
+            distances = [result['_distance'] for result in results]
+
+            results_map.append([image_id, retrieved_ids, distances])
+            retrieved_ids = retrieved_ids[:5] # Take top-5
+            distances = distances[:5]
+            print(f"{retrieved_ids} [{distances}%]")
+
+    return results_map  # Now contains Top-5 results per query
         
 def save_image_to_lance_db(image_path, vehicle_id, folder_name, saving_mode):
     import numpy as np
@@ -222,17 +321,28 @@ def save_image_to_lance_db(image_path, vehicle_id, folder_name, saving_mode):
 
     device = "cuda"
 
-    # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
-    # print(model)
-    # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/net_17.pth", remove_classifier=True)
-    # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change3/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change3/net_9.pth", remove_classifier=True)
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_unmodified/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_unmodified/net_39.pth", remove_classifier=True)
-    #print(model)
-    model.eval()
-    model.to(device)
+    print("Initial Memory Usage:")
+    print_gpu_memory()
+
+    global model
+    if not 'model' in globals():
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
+        # print(model)
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/net_17.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
+        #print(model)
+        model.eval()
+        model.to(device)
+
+    print("Load Memory Usage:")
+    print_gpu_memory()
 
     images = [Image.open(image_path)]
     X_images = torch.stack(tuple(map(data_transforms, images))).to(device)
+
+    print("Image stack Memory Usage:")
+    print_gpu_memory()
 
     # print("X_images shape")
     # print(X_images.shape)
@@ -242,14 +352,20 @@ def save_image_to_lance_db(image_path, vehicle_id, folder_name, saving_mode):
 
     features_array = np.array(features)
 
+    print("Features array Memory Usage:")
+    print_gpu_memory()
+
     #print(f"features_array: {features_array}")
 
-    db = create_db._init_(folder_name)
+    db = create_db._init_(folder_name, features_size)
 
     if (saving_mode == 0) or (saving_mode == 2):
         update_vehicle(vehicle_id, features_array[0], folder_name, db)
     elif (saving_mode == 1) or (saving_mode == 3):
         add_vehicle(vehicle_id, features_array[0], folder_name, db)
+
+    print("Save Memory Usage:")
+    print_gpu_memory()
 
     #query(np.zeros(512))
 
@@ -260,17 +376,17 @@ def compare_image_to_lance_db(image_path, vehicle_id, queried_folder_name):
     import counting_workspace.misc.lance_db_init as create_db
     from counting_workspace.misc.lance_db_AICity import update_vehicle
 
-    from docarray import DocList
-    import numpy as np
     import lancedb
 
     device = "cuda"
 
-    # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_9.pth", remove_classifier=True)
-    #model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change3/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change3/net_9.pth", remove_classifier=True)
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_unmodified/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_unmodified/net_39.pth", remove_classifier=True)
-    model.eval()
-    model.to(device)
+    global model
+    if not 'model' in globals():
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_9.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
+        model.eval()
+        model.to(device)
 
     #print(image_path)
     images = [Image.open(image_path)]
@@ -283,7 +399,7 @@ def compare_image_to_lance_db(image_path, vehicle_id, queried_folder_name):
 
     #print(f"features_array: {features_array}")
 
-    db = create_db._init_(queried_folder_name)
+    db = create_db._init_(queried_folder_name, features_size)
 
 
     compare_array = []
@@ -295,7 +411,7 @@ def compare_image_to_lance_db(image_path, vehicle_id, queried_folder_name):
     print("From intersection 2. -> 1. :")
     for vehicle in compare_array:
     #print(db.query(vehicle[1],intersection))
-        results = l_db.query_for_IDs(vehicle[1],queried_folder_name)
+        results = l_db.query_for_IDs(vehicle[1],queried_folder_name, limit=3)
         results_map.append([vehicle[0],int(results[0]['vehicle_id']), results[0]['_distance']])
 
         print("-------------------------------")
@@ -307,8 +423,74 @@ def compare_image_to_lance_db(image_path, vehicle_id, queried_folder_name):
                 distance = result['_distance']
                 print(f"{id} [{distance}%]")
     #print(results_map)
+
+
+    print("Compared Memory Usage:")
+    print_gpu_memory()
     return results_map
+
+def save_image_to_lance_db_manual_features(image_path, vehicle_id, folder_name, saving_mode, feature_type):
+
+    import counting_workspace.misc.lance_db_init as create_db
+    from counting_workspace.misc.lance_db_AICity import update_vehicle
+    from counting_workspace.misc.lance_db_AICity import add_vehicle
+
+    # Load and process image
+    img = np.array(Image.open(image_path))
+    features = extract_manual_features(img, feature_type=feature_type)
+    
+
+    features_array = np.array(features)
+
+    features_size = features_array.shape[0]
+    #print(features_size)
+    
+    
+    db = create_db._init_(folder_name, features_size)
+    
+    if (saving_mode == 0) or (saving_mode == 2):
+        update_vehicle(vehicle_id, features_array, folder_name, db)
+    elif (saving_mode == 1) or (saving_mode == 3):
+        add_vehicle(vehicle_id, features_array, folder_name, db)
         
+
+def compare_image_to_lance_db_manual_features(image_path, vehicle_id, queried_folder_name, feature_type):
+    import counting_workspace.misc.lance_db_init as create_db
+    from counting_workspace.misc.lance_db_AICity import update_vehicle
+    """
+    Compares an image's extracted features to a LanceDB database.
+    
+    :param image_path: Path to the input image.
+    :param vehicle_id: ID of the vehicle in the image.
+    :param queried_folder_name: Folder name for querying the database.
+    :param feature_type: Feature type to use for comparison (HOG, LBP, RGB, H10).
+    :return: List of matched vehicle IDs with distances.
+    """
+    img = np.array(Image.open(image_path))
+    features = extract_manual_features(img, feature_type=feature_type)
+    
+
+    features_array = np.array(features)
+
+    features_size = features_array.shape[0]
+    #print(features_size)
+    
+    # Initialize database
+    db = create_db._init_(queried_folder_name, features_size)
+    
+    # Query database
+    results = l_db.query_for_IDs(features_array, queried_folder_name, limit=3)
+    
+    # Process results
+    results_map = []
+    if results and results != -1:
+        print("-------------------------------")
+        results_map.append([vehicle_id, int(results[0]['vehicle_id']), results[0]['_distance']])
+        print(f"{vehicle_id} found as ->")
+        for result in results:
+            print(f"{result['vehicle_id']} [{result['_distance']}%]")
+    
+    return results_map
 
 
     

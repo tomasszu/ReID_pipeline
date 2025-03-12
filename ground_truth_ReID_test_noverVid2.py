@@ -26,33 +26,46 @@ import counting_workspace.misc.feature_extract_AICity as fExtract
 #SAVING MODE OPTIONS: 1 - complete saving of all vectors of one vehicle independently
 #SAVING MODE OPTIONS: 2 - summing vectors of vehicle in different zones only
 #SAVING MODE OPTIONS: 3 - saving all vectors of vehicle in different zones only
-saving_mode = 3
+saving_mode = 2
 
 total_iters = 0
 accumulative_accuracy = 0
+accumulative_top1 = 0
 
 def results(results_map):
     frame_findings = len(results_map)
     if(frame_findings):
         frame_accuracy = 0
+        frame_top1 = 0
         for result in results_map:
             id1, id2, distance = result
             if(id1 != id2):
                 frame_accuracy += 0
+                frame_top1 += 0
             else:
                 frame_accuracy += (1 - distance)
+                frame_top1 += 1
         if(frame_accuracy > 0):
             frame_accuracy = frame_accuracy / frame_findings
-        print("Frame accuracy: ", frame_accuracy, "Out of: ", frame_findings, " frame findings" )
+            frame_top1 = frame_top1 / frame_findings
+        print("Frame stats--------------------------")
+        #print("Frame accuracy: ", frame_accuracy, "Out of: ", frame_findings, " frame findings" )
+        print("Frame top1: ", frame_top1, "Out of: ", frame_findings, " frame findings" )
         global total_iters
         total_iters += 1
-        global accumulative_accuracy
+        global accumulative_accuracy, accumulative_top1
         accumulative_accuracy += frame_accuracy
+        accumulative_top1 += frame_top1
         if(accumulative_accuracy != 0 and total_iters != 0):
             total_accuracy = accumulative_accuracy / total_iters
+            total_top1 = accumulative_top1 / total_iters
         else:
             total_accuracy = 0
-        print("Total accuracy: ", total_accuracy, "Out of: ", total_iters, " frames" )
+            total_top1 = 0
+        print("Total stats--------------------------")
+        #print("Total accuracy: ", total_accuracy, "Out of: ", total_iters, " frames" )
+        print("Total top1: ", total_top1, "Out of: ", total_iters, " frames" )
+
 
 
 def xywh_to_xyxy(bbox):
@@ -324,15 +337,15 @@ for frame_nr in range(max_len_frames):
 
     #print(seen_vehicle_ids)
 
-    # Show
-    if ret1:
-        resized = cv2.resize(labeled_frame1, (1120, 840))
-        cv2.imshow("frame1", resized)
+    # # Show
+    # if ret1:
+    #     resized = cv2.resize(labeled_frame1, (1120, 840))
+    #     cv2.imshow("frame1", resized)
 
-    if ret2:
-        resized2 = cv2.resize(labeled_frame2, (1120, 840))
-        cv2.imshow("frame2", resized2)
-        cv2.waitKey(0)
+    # if ret2:
+    #     resized2 = cv2.resize(labeled_frame2, (1120, 840))
+    #     cv2.imshow("frame2", resized2)
+    #     cv2.waitKey(0)
 
     #Record
     # if ret1:

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import init
+import torch.nn.functional as F
 from torchvision import models
 from torch.autograd import Variable
 import timm
@@ -349,6 +350,18 @@ class PCB_test(nn.Module):
         y = x.view(x.size(0), x.size(1), x.size(2))
         return y
 
+class MLP(nn.Module):
+    def __init__(self, num_classes, input_dim):
+        super(MLP, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 1024)  # First fully connected layer
+        self.fc2 = nn.Linear(1024, 256)        # Second layer
+        self.fc3 = nn.Linear(256, num_classes) # Output layer
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
 
 '''
 # debug model structure

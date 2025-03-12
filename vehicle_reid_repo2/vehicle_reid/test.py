@@ -20,7 +20,8 @@ import tqdm
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(SCRIPT_DIR)
 
-from load_model import load_model_from_opts
+from load_model_ModelArchChange_ForInfer_partial import load_model_from_opts
+# from load_model import load_model_from_opts
 from dataset import ImageDataset
 from tool.extract import extract_feature
 
@@ -31,25 +32,32 @@ torchvision_version = list(map(int, torchvision.__version__.split(".")[:2]))
 # --------
 
 parser = argparse.ArgumentParser(description='Test')
-parser.add_argument("--model_opts", required=True,
+parser.add_argument("--model_opts",default="vehicle_reid_repo2/vehicle_reid/model/Bird_Individuals/opts.yaml", 
                     type=str, help="model saved options")
-parser.add_argument("--checkpoint", required=True,
+parser.add_argument("--checkpoint", default="vehicle_reid_repo2/vehicle_reid/model/Bird_Individuals/net_19.pth",
                     type=str, help="model checkpoint to load")
-parser.add_argument("--query_csv_path", required=True,
+parser.add_argument("--query_csv_path", default="/home/tomass/tomass/magistrs/Animal-Identification-from-Video-main/pigeon_test_dataset.csv",
                     type=str, help="csv to contain query image data")
-parser.add_argument("--gallery_csv_path", required=True,
+parser.add_argument("--gallery_csv_path", default="/home/tomass/tomass/magistrs/Animal-Identification-from-Video-main/pigeon_train_dataset.csv",
                     type=str, help="csv to contain gallery image data")
-parser.add_argument("--data_dir", type=str, required=True,
+parser.add_argument("--data_dir", type=str, default='/home/tomass/tomass/magistrs/Animal-Identification-from-Video-main',
                     help="root directory for image datasets")
 parser.add_argument('--gpu_ids', default='0', type=str,
                     help='gpu_ids: e.g. 0  0,1,2  0,2')
 parser.add_argument('--batchsize', default=32, type=int, help='batchsize')
 parser.add_argument('--ms', default='1', type=str,
                     help='multiple_scale: e.g. 1 1,1.1  1,1.1,1.2')
-parser.add_argument("--eval_gpu", action="store_true",
+parser.add_argument("--eval_gpu", action="store_true", default=True,
                     help="Run evaluation on gpu too. This may need a high amount of GPU memory.")
 parser.add_argument("--num_workers", default=0, type=int)
 opt = parser.parse_args()
+
+# Function to print memory usage on the GPU
+def print_gpu_memory():
+    if torch.cuda.is_available():
+        print(f"Current GPU memory allocated: {torch.cuda.memory_allocated() / (1024 ** 2):.2f} MB")
+        print(f"Peak GPU memory allocated: {torch.cuda.max_memory_allocated() / (1024 ** 2):.2f} MB")
+
 
 
 print('We use the scale: %s' % opt.ms)
@@ -111,6 +119,9 @@ gallery_cam = gallery_df["cam"].to_numpy() if "cam" in gallery_df else np.array(
 # Load model
 # ----------
 
+print("Initial Memory Usage:")
+print_gpu_memory()
+
 print('-------test-----------')
 print("Running on: {}".format(device))
 
@@ -119,6 +130,10 @@ model = load_model_from_opts(opt.model_opts, ckpt=opt.checkpoint,
 model.eval()
 model.to(device)
 
+print("Load Memory Usage:")
+print_gpu_memory()
+
+
 # Extract feature
 since = time.time()
 with torch.no_grad():
@@ -126,6 +141,8 @@ with torch.no_grad():
         model, dataloaders['query'], device, ms)
     gallery_feature, gallery_labels = extract_feature(
         model, dataloaders['gallery'], device, ms)
+    
+
 
 time_elapsed = time.time() - since
 print('Complete in {:.0f}m {:.2f}s'.format(
@@ -137,11 +154,13 @@ result = {'gallery_f': gallery_feature.numpy(), 'gallery_label': gallery_labels,
           'gallery_cam': gallery_cam, 'query_cam': query_cam}
 scipy.io.savemat('pytorch_result.mat', result)
 
+
+
 print("Feature extraction finished, starting evaluation ...")
 torch.cuda.empty_cache()
 
 # run evaluation script
-cmd = "evaluate.py"
+cmd = "vehicle_reid_repo2/vehicle_reid/evaluate.py"
 if opt.eval_gpu:
     cmd += " --gpu"
 pythons = ["python3", f"python3.{sys.version_info.minor}", "python"]

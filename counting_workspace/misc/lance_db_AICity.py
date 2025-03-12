@@ -19,7 +19,7 @@ def add_vehicle(vehicle_id, embedding, intersection, db):
 def update_vehicle(vehicle_id, embedding, intersection, db):
   tbl = db.open_table(intersection)
 
-  df = (tbl.search(np.zeros(512, dtype= np.float16), vector_column_name="vector")
+  df = (tbl.search(np.zeros(256, dtype= np.float16), vector_column_name="vector")
       .where(f"vehicle_id = '{vehicle_id}'", prefilter=True)
       .select(["vector", "vehicle_id", "times_summed"])
       .limit(1)
