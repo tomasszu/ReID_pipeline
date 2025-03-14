@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 
 import counting_workspace.misc.lance_db_CLIP_AICity as l_db
 
+from counting_workspace.misc.linear_feature_extraction import extract_linear_features
+
 from counting_workspace.misc.manual_feature_extraction import extract_manual_features
 
 
@@ -429,7 +431,7 @@ def compare_image_to_lance_db(image_path, vehicle_id, queried_folder_name):
     print_gpu_memory()
     return results_map
 
-def save_image_to_lance_db_manual_features(image_path, vehicle_id, folder_name, saving_mode, feature_type):
+def save_image_to_lance_db_manual_features(image_path, vehicle_id, folder_name, saving_mode, feature_type=None):
 
     import counting_workspace.misc.lance_db_init as create_db
     from counting_workspace.misc.lance_db_AICity import update_vehicle
@@ -454,7 +456,7 @@ def save_image_to_lance_db_manual_features(image_path, vehicle_id, folder_name, 
         add_vehicle(vehicle_id, features_array, folder_name, db)
         
 
-def compare_image_to_lance_db_manual_features(image_path, vehicle_id, queried_folder_name, feature_type):
+def compare_image_to_lance_db_manual_features(image_path, vehicle_id, queried_folder_name, feature_type=None):
     import counting_workspace.misc.lance_db_init as create_db
     from counting_workspace.misc.lance_db_AICity import update_vehicle
     """
@@ -492,6 +494,64 @@ def compare_image_to_lance_db_manual_features(image_path, vehicle_id, queried_fo
     
     return results_map
 
+def save_image_to_lance_db_linear_features(image_path, vehicle_id, folder_name, saving_mode, feature_type=None):
 
+    import counting_workspace.misc.lance_db_init as create_db
+    from counting_workspace.misc.lance_db_AICity import update_vehicle
+    from counting_workspace.misc.lance_db_AICity import add_vehicle
+
+    # Load and process image
+    img = np.array(Image.open(image_path))
+    features = extract_linear_features(img, feature_type=feature_type)
     
 
+    features_array = np.array(features)
+
+    features_size = features_array.shape[0]
+    #print(features_size)
+    
+    
+    db = create_db._init_(folder_name, features_size)
+    
+    if (saving_mode == 0) or (saving_mode == 2):
+        update_vehicle(vehicle_id, features_array, folder_name, db)
+    elif (saving_mode == 1) or (saving_mode == 3):
+        add_vehicle(vehicle_id, features_array, folder_name, db)
+    
+def compare_image_to_lance_db_linear_features(image_path, vehicle_id, queried_folder_name, feature_type=None):
+    import counting_workspace.misc.lance_db_init as create_db
+    from counting_workspace.misc.lance_db_AICity import update_vehicle
+    """
+    Compares an image's extracted features to a LanceDB database.
+    
+    :param image_path: Path to the input image.
+    :param vehicle_id: ID of the vehicle in the image.
+    :param queried_folder_name: Folder name for querying the database.
+    :param feature_type: Feature type to use for comparison (HOG, LBP, RGB, H10).
+    :return: List of matched vehicle IDs with distances.
+    """
+    img = np.array(Image.open(image_path))
+    features = extract_linear_features(img, feature_type=feature_type)
+    
+
+    features_array = np.array(features)
+
+    features_size = features_array.shape[0]
+    #print(features_size)
+    
+    # Initialize database
+    db = create_db._init_(queried_folder_name, features_size)
+    
+    # Query database
+    results = l_db.query_for_IDs(features_array, queried_folder_name, limit=3)
+    
+    # Process results
+    results_map = []
+    if results and results != -1:
+        print("-------------------------------")
+        results_map.append([vehicle_id, int(results[0]['vehicle_id']), results[0]['_distance']])
+        print(f"{vehicle_id} found as ->")
+        for result in results:
+            print(f"{result['vehicle_id']} [{result['_distance']}%]")
+    
+    return results_map

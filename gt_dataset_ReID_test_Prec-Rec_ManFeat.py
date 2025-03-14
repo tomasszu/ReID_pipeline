@@ -145,7 +145,7 @@ seen_vehicle_ids = [20]
 # Select the requested feature type
 feature_map = ["HOG", "LBP", "RGB", "H10"]
 
-feature_type = feature_map[3]
+feature_type = feature_map[0]
 
 if feature_type not in feature_map:
     raise ValueError(f"Invalid feature type: {feature_type}. Choose from 'HOG', 'LBP', 'RGB', 'H10'.")
@@ -162,7 +162,7 @@ for index, row in file1.iterrows():
     if vehicle_id not in seen_vehicle_ids:
         seen_vehicle_ids.append(vehicle_id)
     
-    fExtract.save_image_to_lance_db_manual_features(image_path, vehicle_id, 1, saving_mode, feature_type)
+    fExtract.save_image_to_lance_db_manual_features(image_path, vehicle_id, 1, saving_mode, feature_type=None)
     print(index, ".image saved")
 
 for index, row in file3.iterrows():
@@ -174,7 +174,7 @@ for index, row in file3.iterrows():
     if vehicle_id not in seen_vehicle_ids:
         seen_vehicle_ids.append(vehicle_id)
     
-    fExtract.save_image_to_lance_db_manual_features(image_path, vehicle_id, 1, saving_mode, feature_type)
+    fExtract.save_image_to_lance_db_manual_features(image_path, vehicle_id, 1, saving_mode, feature_type=None)
     print(index, ".image saved")
 
 # _____________________________________________________________________________________#
@@ -187,7 +187,7 @@ for index, row in file2.iterrows():
     image_path = os.path.join(data_dir, image_path)
 
     if vehicle_id in seen_vehicle_ids:
-        results_map = fExtract.compare_image_to_lance_db_manual_features(image_path, vehicle_id, 1, feature_type)
+        results_map = fExtract.compare_image_to_lance_db_manual_features(image_path, vehicle_id, 1, feature_type=None)
         results(results_map)
 
 # _______________________________________________________________________________________#

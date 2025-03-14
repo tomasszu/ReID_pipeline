@@ -121,7 +121,7 @@ def colour_features_histogram(im,bins):
     hist = hist/np.sum(hist)
     return hist, bin_edges
 
-def extract_manual_features(img, r=224, feature_type=None):
+def extract_manual_features(img, r=128, feature_type=None):
     """
     Extracts manual features from an image.
     
@@ -134,7 +134,8 @@ def extract_manual_features(img, r=224, feature_type=None):
     Returns:
     - Extracted feature array (numpy array)
     """
-    
+    if feature_type is 'Combined':
+        feature_type = None
     # Resize the image
     resized_img = resize(img, (r, r))
     
@@ -152,17 +153,17 @@ def extract_manual_features(img, r=224, feature_type=None):
         n_points = 8 * radius
         method = 'uniform'
         lbp_raw = local_binary_pattern(rgb2gray(img), n_points, radius, method)
-        lbp, _ = np.histogram(lbp_raw, bins=256, density=True)
+        lbp, _ = np.histogram(lbp_raw, bins=64, density=True)
         extracted_features.append(lbp)
 
     # RGB Block Features
     if feature_type is None or feature_type == "RGB":
-        rgb = fox_get_colour_features(img, fstr='RGB', blocks_r=16, blocks_c=16, bins=32)
+        rgb = fox_get_colour_features(img, fstr='RGB', blocks_r=8, blocks_c=8, bins=16)
         extracted_features.append(rgb)
 
     # H10 Features
     if feature_type is None or feature_type == "H10":
-        h10 = fox_get_colour_features(img, fstr='H', blocks_r=4, blocks_c=4, bins=64)
+        h10 = fox_get_colour_features(img, fstr='H', blocks_r=2, blocks_c=2, bins=32)
         extracted_features.append(h10)
 
     # Return selected feature or concatenated features
