@@ -7,12 +7,20 @@ import torch
 from torchvision import transforms
 from PIL import Image
 
-sys.path.append("vehicle_reid_repo2/")
-sys.path.append("..")
+import torch.nn as nn
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PARENT_DIR = os.path.dirname(SCRIPT_DIR)  # Get the directory above
+PROJECT_DIR = os.path.dirname(PARENT_DIR)  # Get the directory above
+
+sys.path.append(SCRIPT_DIR)  # Add current script's directory
+sys.path.append(PARENT_DIR)  # Add parent directory
+sys.path.append(PROJECT_DIR)  # Add parent directory
+
 #import vehicle_reid_repo2
 #from vehicle_reid.load_model_ModelArchChange import load_model_from_opts
 # from vehicle_reid.load_model_ModelArchChange_ForInfer_partial import load_model_from_opts
-from vehicle_reid.load_model import load_model_from_opts
+from vehicle_reid_repo2.vehicle_reid.load_model import load_model_from_opts
 import matplotlib.pyplot as plt
 
 import counting_workspace.misc.lance_db_CLIP_AICity as l_db
@@ -66,10 +74,45 @@ def extract_feature(model, X, device="cuda"):
     X = X.to(device)
     feature = model(X).reshape(-1)
     # print("extracted feature")
-    # print(feature.shape)
+
 
     X = fliplr(X)
     flipped_feature = model(X).reshape(-1)
+    feature += flipped_feature
+
+    fnorm = torch.norm(feature, p=2)
+    return feature.div(fnorm)
+
+def extract_and_prune_feature(model, X, device="cuda"):
+    """Exract the embeddings of a single image tensor X"""
+    # print("X")
+    # print(X.shape)
+    if len(X.shape) == 3:
+        X = torch.unsqueeze(X, 0)
+        # print("unsqueezed X")
+        # print(X.shape)
+    X = X.to(device)
+    feature = model(X).reshape(-1)
+    # print("extracted feature")
+    # print(feature.shape)
+
+    prune_indices = [237, 178, 131, 82, 23]
+
+    mask = torch.ones(feature.shape, device=device, dtype=torch.bool)
+    mask[prune_indices] = False  # Set False at prune_indices
+
+    # Apply the mask to exclude the specified indices
+    feature = feature[mask]
+
+
+    X = fliplr(X)
+    flipped_feature = model(X).reshape(-1)
+    mask = torch.ones(flipped_feature.shape, device=device, dtype=torch.bool)
+    mask[prune_indices] = False  # Set False at prune_indices
+
+    # Apply the mask to exclude the specified indices
+    flipped_feature = flipped_feature[mask]
+
     feature += flipped_feature
 
     fnorm = torch.norm(feature, p=2)
@@ -336,6 +379,9 @@ def save_image_to_lance_db(image_path, vehicle_id, folder_name, saving_mode):
         #print(model)
         model.eval()
         model.to(device)
+        #print(model.classifier.add_block[2])
+        model.classifier.add_block[2] = nn.Sequential()
+        #print(model)
 
     print("Load Memory Usage:")
     print_gpu_memory()
@@ -353,6 +399,8 @@ def save_image_to_lance_db(image_path, vehicle_id, folder_name, saving_mode):
     features = torch.stack(features).detach().cpu()
 
     features_array = np.array(features)
+
+    features_size = features_array.shape[1]
 
     print("Features array Memory Usage:")
     print_gpu_memory()
@@ -389,6 +437,7 @@ def compare_image_to_lance_db(image_path, vehicle_id, queried_folder_name):
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
         model.eval()
         model.to(device)
+        model.classifier.add_block[2] = nn.Sequential()
 
     #print(image_path)
     images = [Image.open(image_path)]
@@ -397,7 +446,9 @@ def compare_image_to_lance_db(image_path, vehicle_id, queried_folder_name):
     features = [extract_feature(model, X) for X in X_images]
     features = torch.stack(features).detach().cpu()
 
-    ReIDfeatures_array = np.array(features)
+    features_array = np.array(features)
+
+    features_size = features_array.shape[1]
 
     #print(f"features_array: {features_array}")
 
@@ -405,7 +456,139 @@ def compare_image_to_lance_db(image_path, vehicle_id, queried_folder_name):
 
 
     compare_array = []
-    compare_array.append([vehicle_id, ReIDfeatures_array[0]])
+    compare_array.append([vehicle_id, features_array[0]])
+
+
+    track_map = {}
+    results_map = []
+    print("From intersection 2. -> 1. :")
+    for vehicle in compare_array:
+    #print(db.query(vehicle[1],intersection))
+        results = l_db.query_for_IDs(vehicle[1],queried_folder_name, limit=3)
+        results_map.append([vehicle[0],int(results[0]['vehicle_id']), results[0]['_distance']])
+
+        print("-------------------------------")
+        if(results and results != -1):
+            track_map[vehicle[0]] = [results[0]['vehicle_id'], results[0]['_distance']]
+            print(f"{vehicle[0]} found as ->  \n")
+            for i, result in enumerate(results):
+                id = result['vehicle_id']
+                distance = result['_distance']
+                print(f"{id} [{distance}%]")
+    #print(results_map)
+
+
+    print("Compared Memory Usage:")
+    print_gpu_memory()
+    return results_map
+
+def save_image_to_lance_db_prune(image_path, vehicle_id, folder_name, saving_mode, idx_to_remove):
+    import numpy as np
+    import re
+    #from misc.database import Vehicles
+    import counting_workspace.misc.lance_db_init as create_db
+    from counting_workspace.misc.lance_db_AICity import update_vehicle
+    from counting_workspace.misc.lance_db_AICity import add_vehicle
+
+    from docarray import DocList
+    import numpy as np
+    import lancedb
+
+    device = "cuda"
+
+    print("Initial Memory Usage:")
+    print_gpu_memory()
+
+    global model
+    if not 'model' in globals():
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
+        # print(model)
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/net_17.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
+        #print(model)
+        model.eval()
+        model.to(device)
+        #print(model.classifier.add_block[2])
+        model.classifier.add_block[2] = nn.Sequential()
+        #print(model)
+
+    print("Load Memory Usage:")
+    print_gpu_memory()
+
+    images = [Image.open(image_path)]
+    X_images = torch.stack(tuple(map(data_transforms, images))).to(device)
+
+    print("Image stack Memory Usage:")
+    print_gpu_memory()
+
+    # print("X_images shape")
+    # print(X_images.shape)
+
+    features = [extract_feature(model, X_images)]
+    features = torch.stack(features).detach().cpu()
+
+    features_array = np.array(features)
+    features_array = np.delete(features_array, idx_to_remove)
+
+    features_size = features_array.shape[0]
+
+    print("Features array Memory Usage:")
+    print_gpu_memory()
+
+    #print(f"features_array: {features_array}")
+
+    db = create_db._init_(folder_name, features_size)
+
+    if (saving_mode == 0) or (saving_mode == 2):
+        update_vehicle(vehicle_id, features_array[0], folder_name, db)
+    elif (saving_mode == 1) or (saving_mode == 3):
+        add_vehicle(vehicle_id, features_array, folder_name, db)
+
+    print("Save Memory Usage:")
+    print_gpu_memory()
+
+    #query(np.zeros(512))
+
+def compare_image_to_lance_db_prune(image_path, vehicle_id, queried_folder_name, idx_to_remove):
+    import numpy as np
+    import re
+    #from misc.database import Vehicles
+    import counting_workspace.misc.lance_db_init as create_db
+    from counting_workspace.misc.lance_db_AICity import update_vehicle
+
+    import lancedb
+
+    device = "cuda"
+
+    global model
+    if not 'model' in globals():
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_9.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
+        model.eval()
+        model.to(device)
+        model.classifier.add_block[2] = nn.Sequential()
+
+    #print(image_path)
+    images = [Image.open(image_path)]
+    X_images = torch.stack(tuple(map(data_transforms, images))).to(device)
+
+    features = [extract_feature(model, X) for X in X_images]
+    features = torch.stack(features).detach().cpu()
+
+    features_array = np.array(features)
+    features_array = np.delete(features_array, idx_to_remove)
+
+    features_size = features_array.shape[0]
+
+    #print(f"features_array: {features_array}")
+
+    db = create_db._init_(queried_folder_name, features_size)
+
+
+    compare_array = []
+    compare_array.append([vehicle_id, features_array])
 
 
     track_map = {}
