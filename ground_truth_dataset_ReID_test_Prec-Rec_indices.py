@@ -68,59 +68,76 @@ file3 = pd.read_csv(ground_truths_path_3)
 
 seen_vehicle_ids = [20]
 
-# Try pruning one feature at a time
-for i in range(255):
+# prune_indices1 = [45, 65, 91, 97, 103, 105, 130, 153, 169, 192, 217, 224]
+prune_indices1 = [45, 65, 97, 103, 105, 130, 153, 224]
 
-    #_________________________________________________________________________________________#
-    # Turn vehicles from camera y, z, ... (gallery cameras) into embeddings and save in DB:
 
-    for index, row in file1.iterrows():
-        image_path = row['path']  # Get the image path
-        vehicle_id = row['ID']     # Get the vehicle ID
+# Iterate over unique combinations
+for i in prune_indices1:
+    for j in prune_indices1:
+        for k in prune_indices1:
+            for l in prune_indices1:
+                for m in prune_indices1:
+                    for n in prune_indices1:
+                        if len({i, j, k, l, m, n}) == 6:  # Ensure all are distinct
 
-        image_path = os.path.join(data_dir, image_path)
-        
-        if vehicle_id not in seen_vehicle_ids:
-            seen_vehicle_ids.append(vehicle_id)
-        
-        fExtract.save_image_to_lance_db_prune(image_path, vehicle_id, 1, saving_mode, i)
+                            if(j < i or k < j or l < k or m < l or n < m): continue
+                            else:
+                                print(f"Valid combination: {i}, {j}, {k}, {l}, {m}, {n}")
+                                prune_idx = []
+                                prune_idx.extend([i,j,k,l,m,n])
+                                print(prune_idx)
+                                #_________________________________________________________________________________________#
+                                # Turn vehicles from camera y, z, ... (gallery cameras) into embeddings and save in DB:
 
-    for index, row in file3.iterrows():
-        image_path = row['path']  # Get the image path
-        vehicle_id = row['ID']     # Get the vehicle ID
+                                for index, row in file1.iterrows():
+                                    image_path = row['path']  # Get the image path
+                                    vehicle_id = row['ID']     # Get the vehicle ID
 
-        image_path = os.path.join(data_dir, image_path)
-        
-        if vehicle_id not in seen_vehicle_ids:
-            seen_vehicle_ids.append(vehicle_id)
-        
-        fExtract.save_image_to_lance_db_prune(image_path, vehicle_id, 1, saving_mode, i)
+                                    image_path = os.path.join(data_dir, image_path)
+                                    
+                                    if vehicle_id not in seen_vehicle_ids:
+                                        seen_vehicle_ids.append(vehicle_id)
+                                    
+                                    fExtract.save_image_to_lance_db_prune(image_path, vehicle_id, 1, saving_mode, prune_idx)
 
-    # _____________________________________________________________________________________#
-    # Turn vehicles from camera x (query camera) into embeddings and search in DB:
+                                for index, row in file3.iterrows():
+                                    image_path = row['path']  # Get the image path
+                                    vehicle_id = row['ID']     # Get the vehicle ID
 
-    for index, row in file2.iterrows():
-        image_path = row['path']  # Get the image path
-        vehicle_id = row['ID']     # Get the vehicle ID
+                                    image_path = os.path.join(data_dir, image_path)
+                                    
+                                    if vehicle_id not in seen_vehicle_ids:
+                                        seen_vehicle_ids.append(vehicle_id)
+                                    
+                                    fExtract.save_image_to_lance_db_prune(image_path, vehicle_id, 1, saving_mode, prune_idx)
 
-        image_path = os.path.join(data_dir, image_path)
+                                # _____________________________________________________________________________________#
+                                # Turn vehicles from camera x (query camera) into embeddings and search in DB:
 
-        if vehicle_id in seen_vehicle_ids:
-            results_map = fExtract.compare_image_to_lance_db_prune(image_path, vehicle_id, 1, i)
-            results(results_map)
+                                for index, row in file2.iterrows():
+                                    image_path = row['path']  # Get the image path
+                                    vehicle_id = row['ID']     # Get the vehicle ID
 
-    # Check if the folder exists
-    if os.path.exists(vector_db_folder):
-        # Use shutil.rmtree to delete the folder and all its contents
-        shutil.rmtree(vector_db_folder)
-        print(f"Folder {vector_db_folder} has been deleted.")
-    else:
-        print(f"Folder {vector_db_folder} does not exist.")
+                                    image_path = os.path.join(data_dir, image_path)
 
-    print(i, " : ", results(results_map))
-    # Open the file in append mode ('a') to add the output to the file without overwriting it
-    with open("prune_results.txt", "a") as file:
-        file.write(f"{i} : {results(results_map)}\n")
+                                    if vehicle_id in seen_vehicle_ids:
+                                        results_map = fExtract.compare_image_to_lance_db_prune(image_path, vehicle_id, 1, prune_idx)
+                                        results(results_map)
 
-    total_iters = 0
-    accumulative_accuracy = 0
+                                # Check if the folder exists
+                                if os.path.exists(vector_db_folder):
+                                    # Use shutil.rmtree to delete the folder and all its contents
+                                    shutil.rmtree(vector_db_folder)
+                                    print(f"Folder {vector_db_folder} has been deleted.")
+                                else:
+                                    print(f"Folder {vector_db_folder} does not exist.")
+
+                                print(i, " : ", results(results_map))
+                                # Open the file in append mode ('a') to add the output to the file without overwriting it
+                                with open("prune_results6.txt", "a") as file:
+                                    file.write(f"{prune_idx} : {results(results_map)}\n")
+
+                                total_iters = 0
+                                accumulative_accuracy = 0
+                                prune_idx = []
