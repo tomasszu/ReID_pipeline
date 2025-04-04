@@ -14,6 +14,10 @@ import counting_workspace.misc.feature_extract_AICity as fExtract
 #For ModelArchChange - removing all classification head
 # import counting_workspace.misc.feature_extract_AICity_ModelArchChange_ForInfer as fExtract
 
+from counting_workspace.misc.opensearch_db import Opensearch_db
+
+db = Opensearch_db("localhost", 9200, ("admin", "admin"))
+
 
 #SAVING MODE OPTIONS: 0 - complete summing of all vectors of one vehicle in one
 #SAVING MODE OPTIONS: 1 - complete saving of all vectors of one vehicle independently
@@ -142,28 +146,9 @@ file3 = pd.read_csv(ground_truths_path_3)
 
 seen_vehicle_ids = [20]
 
-# Select the requested feature type
-feature_map = ["HOG", "LBP", "RGB", "H10", "LBP+H10"]
-
-feature_type = feature_map[4]
-
-if feature_type not in feature_map:
-    raise ValueError(f"Invalid feature type: {feature_type}. Choose from 'HOG', 'LBP', 'RGB', 'H10', 'LBP+H10'.")
 
 #_________________________________________________________________________________________#
 # Turn vehicles from camera y, z, ... (gallery cameras) into embeddings and save in DB:
-
-for index, row in file2.iterrows():
-    image_path = row['path']  # Get the image path
-    vehicle_id = row['ID']     # Get the vehicle ID
-
-    image_path = os.path.join(data_dir, image_path)
-    
-    if vehicle_id not in seen_vehicle_ids:
-        seen_vehicle_ids.append(vehicle_id)
-    
-    fExtract.save_image_to_lance_db_manual_features(image_path, vehicle_id, 1, saving_mode, feature_type=None)
-    print(index, ".image saved")
 
 for index, row in file1.iterrows():
     image_path = row['path']  # Get the image path
@@ -174,20 +159,30 @@ for index, row in file1.iterrows():
     if vehicle_id not in seen_vehicle_ids:
         seen_vehicle_ids.append(vehicle_id)
     
-    fExtract.save_image_to_lance_db_manual_features(image_path, vehicle_id, 1, saving_mode, feature_type=None)
-    print(index, ".image saved")
-
-# _____________________________________________________________________________________#
-# Turn vehicles from camera x (query camera) into embeddings and search in DB:
+    fExtract.save_image_to_opensearch_db(image_path, vehicle_id, db, saving_mode)
 
 for index, row in file3.iterrows():
     image_path = row['path']  # Get the image path
     vehicle_id = row['ID']     # Get the vehicle ID
 
     image_path = os.path.join(data_dir, image_path)
+    
+    if vehicle_id not in seen_vehicle_ids:
+        seen_vehicle_ids.append(vehicle_id)
+    
+    fExtract.save_image_to_opensearch_db(image_path, vehicle_id, db, saving_mode)
+
+# # _____________________________________________________________________________________#
+# # Turn vehicles from camera x (query camera) into embeddings and search in DB:
+
+for index, row in file2.iterrows():
+    image_path = row['path']  # Get the image path
+    vehicle_id = row['ID']     # Get the vehicle ID
+
+    image_path = os.path.join(data_dir, image_path)
 
     if vehicle_id in seen_vehicle_ids:
-        results_map = fExtract.compare_image_to_lance_db_manual_features(image_path, vehicle_id, 1, feature_type=None)
+        results_map = fExtract.compare_image_to_opensearch_db(image_path, vehicle_id, db)
         results(results_map)
 
 # _______________________________________________________________________________________#

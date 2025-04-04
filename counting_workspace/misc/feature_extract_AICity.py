@@ -153,6 +153,95 @@ def save_extractions_to_CSV(folder):
             # COUNTER = COUNTER + 1
         print("Embeddings saved to CSV.")
 
+def save_image_to_opensearch_db(image_path, vehicle_id, db, saving_mode):
+    import numpy as np
+
+    device = "cuda"
+
+    print("Initial Memory Usage:")
+    print_gpu_memory()
+
+    global model
+    if not 'model' in globals():
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
+        # print(model)
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/net_17.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
+        #print(model)
+        model.eval()
+        model.to(device)
+        #print(model.classifier.add_block[2])
+        model.classifier.add_block[2] = nn.Sequential()
+        #print(model)
+
+    images = [Image.open(image_path)]
+    X_images = torch.stack(tuple(map(data_transforms, images))).to(device)
+
+    features = [extract_feature(model, X_images)]
+    features = torch.stack(features).detach().cpu()
+
+    features_array = np.array(features)
+
+    # VEKTORA IZMERS DATUBAZEE TIEK NOMAINITS VEIDOJOT SHEEMU, NE KKUR KODAA
+
+    print("Features array Memory Usage:")
+    print_gpu_memory()
+
+    if (saving_mode == 0) or (saving_mode == 2):
+        print("Error! Not provisioned vector summing operation!><><><><><<><<><><><><><><><><><><><><><")
+    elif (saving_mode == 1) or (saving_mode == 3):
+        db.insert(vehicle_id = vehicle_id, feature_vector = features_array[0], times_summed = 0)
+
+    print("Save Memory Usage:")
+    print_gpu_memory()
+
+
+def compare_image_to_opensearch_db(image_path, vehicle_id, db):
+    import numpy as np
+
+
+    device = "cuda"
+
+    global model
+    if not 'model' in globals():
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_9.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
+        model.eval()
+        model.to(device)
+        model.classifier.add_block[2] = nn.Sequential()
+
+    #print(image_path)
+    images = [Image.open(image_path)]
+    X_images = torch.stack(tuple(map(data_transforms, images))).to(device)
+
+    features = [extract_feature(model, X) for X in X_images]
+    features = torch.stack(features).detach().cpu()
+
+    features_array = np.array(features)
+
+    compare_array = []
+    compare_array.append([vehicle_id, features_array[0]])
+
+
+    track_map = {}
+    results_map = []
+    print("From intersection 2. -> 1. :")
+    for vehicle in compare_array:
+        results = db.query_vector(vehicle[1], k=3)
+        results_map.append([vehicle[0],int(results[0][0]), results[0][1]])
+
+        print("-------------------------------")
+        if(results and results != -1):
+            track_map[vehicle[0]] = [results[0][0], results[0][1]]
+            print(f"{vehicle[0]} found as ->  \n")
+            for i, result in enumerate(results):
+                id = result[0]
+                distance = result[1]
+                print(f"{id} [{distance}%]")
+
+    return results_map
 
 def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
     import numpy as np

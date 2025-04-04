@@ -148,7 +148,7 @@ def extract_manual_features(img, r=128, feature_type=None):
         extracted_features.append(fd)
 
     # LBP Feature Extraction
-    if feature_type is None or feature_type == "LBP":
+    if feature_type is None or feature_type == "LBP" or feature_type == "LBP+H10":
         radius = 3
         n_points = 8 * radius
         method = 'uniform'
@@ -162,7 +162,7 @@ def extract_manual_features(img, r=128, feature_type=None):
         extracted_features.append(rgb)
 
     # H10 Features
-    if feature_type is None or feature_type == "H10":
+    if feature_type is None or feature_type == "H10" or feature_type == "LBP+H10":
         h10 = fox_get_colour_features(img, fstr='H', blocks_r=2, blocks_c=2, bins=32)
         extracted_features.append(h10)
 
