@@ -45,16 +45,16 @@ from dataset import ImageDataset, BatchSampler
 # Options
 # --------
 parser = argparse.ArgumentParser(description='Training')
-parser.add_argument('--data_dir', default='/home/tomass/tomass/magistrs/wildlife-datasets/data/ferreira_et_al_2020/Bbox_pictures', type=str, help='path to the dataset root directory')
+parser.add_argument('--data_dir', default='/home/tomass/tomass/magistrs/video_annotating', type=str, help='path to the dataset root directory')
 #parser.add_argument('--data_dir', default='/home/toms.zinars/tomass/data', type=str, help='path to the dataset root directory')
 
-parser.add_argument("--train_csv_path", default='/home/tomass/tomass/magistrs/wildlife-datasets/data/ferreira_et_al_2020/Bbox_pictures/train_all.csv', type=str)
+parser.add_argument("--train_csv_path", default='/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/train_datasets/pidgeon_train_3/train.csv', type=str)
 #parser.add_argument("--train_csv_path", default='/home/toms.zinars/tomass/data/VeRi_VehicX/VeRi+VehicX_train.csv', type=str)
 
-parser.add_argument("--val_csv_path", default='/home/tomass/tomass/magistrs/wildlife-datasets/data/ferreira_et_al_2020/Bbox_pictures/val_all.csv', type=str)
+parser.add_argument("--val_csv_path", default='/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/train_datasets/pidgeon_train_3/val.csv', type=str)
 #parser.add_argument("--val_csv_path", default='/home/toms.zinars/tomass/data/VeRi_VehicX/VeRi+VehicX_val.csv', type=str)
 
-parser.add_argument('--name', default='Bird_Individuals',
+parser.add_argument('--name', default='Pidgeon_model_3',
                     type=str, help='output model name')
 
 parser.add_argument('--gpu_ids', default='0', type=str,
@@ -90,14 +90,14 @@ parser.add_argument('--cosine', action='store_true',
                     help='use cosine learning rate')
 parser.add_argument('--batchsize', default=32,
                     type=int, help='batchsize')
-parser.add_argument('--linear_num', default=512, type=int,
+parser.add_argument('--linear_num', default=256, type=int,
                     help='feature dimension: 512 (default) or 0 (linear=False)')
-parser.add_argument('--stride', default=2, type=int, help='last stride')
+parser.add_argument('--stride', default=1, type=int, help='last stride')
 parser.add_argument('--droprate', default=0.5,
                     type=float, help='drop rate')
 parser.add_argument('--erasing_p', default=0.5, type=float,
                     help='Random Erasing probability, in [0,1]')
-parser.add_argument('--color_jitter', action='store_true',
+parser.add_argument('--color_jitter', default=True, action='store_true',
                     help='use color jitter in training')
 parser.add_argument("--label_smoothing", default=0.0, type=float)
 parser.add_argument("--samples_per_class", default=1, type=int,
@@ -505,7 +505,7 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
                 if not use_tpu or opt.tpu_cores == 1 or xm.is_master_ordinal():
                     if epoch == num_epochs - 1 or (epoch % (opt.save_freq) == (opt.save_freq - 1)):
                         save_network(model, epoch)
-            #        draw_curve(epoch)
+                    draw_curve(epoch)
             if phase == 'train':
                 scheduler.step()
 

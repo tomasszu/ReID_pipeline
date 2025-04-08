@@ -455,15 +455,12 @@ def save_image_to_lance_db(image_path, vehicle_id, folder_name, saving_mode):
 
     device = "cuda"
 
-    print("Initial Memory Usage:")
-    print_gpu_memory()
-
     global model
     if not 'model' in globals():
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
         # print(model)
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/net_17.pth", remove_classifier=True)
-        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_2/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_2/net_19.pth", remove_classifier=True)
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
         #print(model)
         model.eval()
@@ -472,14 +469,10 @@ def save_image_to_lance_db(image_path, vehicle_id, folder_name, saving_mode):
         model.classifier.add_block[2] = nn.Sequential()
         #print(model)
 
-    print("Load Memory Usage:")
-    print_gpu_memory()
 
     images = [Image.open(image_path)]
     X_images = torch.stack(tuple(map(data_transforms, images))).to(device)
 
-    print("Image stack Memory Usage:")
-    print_gpu_memory()
 
     # print("X_images shape")
     # print(X_images.shape)
@@ -491,9 +484,6 @@ def save_image_to_lance_db(image_path, vehicle_id, folder_name, saving_mode):
 
     features_size = features_array.shape[1]
 
-    print("Features array Memory Usage:")
-    print_gpu_memory()
-
     #print(f"features_array: {features_array}")
 
     db = create_db._init_(folder_name, features_size)
@@ -503,8 +493,6 @@ def save_image_to_lance_db(image_path, vehicle_id, folder_name, saving_mode):
     elif (saving_mode == 1) or (saving_mode == 3):
         add_vehicle(vehicle_id, features_array[0], folder_name, db)
 
-    print("Save Memory Usage:")
-    print_gpu_memory()
 
     #query(np.zeros(512))
 
@@ -522,7 +510,7 @@ def compare_image_to_lance_db(image_path, vehicle_id, queried_folder_name):
     global model
     if not 'model' in globals():
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_9.pth", remove_classifier=True)
-        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_2_no_CE/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_2_no_CE/net_5.pth", remove_classifier=True)
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
         model.eval()
         model.to(device)
@@ -566,9 +554,6 @@ def compare_image_to_lance_db(image_path, vehicle_id, queried_folder_name):
                 print(f"{id} [{distance}%]")
     #print(results_map)
 
-
-    print("Compared Memory Usage:")
-    print_gpu_memory()
     return results_map
 
 def save_image_to_lance_db_prune(image_path, vehicle_id, folder_name, saving_mode, idx_to_remove):
