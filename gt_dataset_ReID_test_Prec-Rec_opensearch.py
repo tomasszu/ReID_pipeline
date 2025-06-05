@@ -3,8 +3,9 @@ import cv2
 
 #basics
 import pandas as pd
-import numpy as np
 import os
+
+import time
 
 import counting_workspace.misc.crop_AICity as detection_crop
 #No CLIP
@@ -150,6 +151,8 @@ seen_vehicle_ids = [20]
 #_________________________________________________________________________________________#
 # Turn vehicles from camera y, z, ... (gallery cameras) into embeddings and save in DB:
 
+start_time = time.time()
+
 for index, row in file1.iterrows():
     image_path = row['path']  # Get the image path
     vehicle_id = row['ID']     # Get the vehicle ID
@@ -161,19 +164,24 @@ for index, row in file1.iterrows():
     
     fExtract.save_image_to_opensearch_db(image_path, vehicle_id, db, saving_mode)
 
-for index, row in file3.iterrows():
-    image_path = row['path']  # Get the image path
-    vehicle_id = row['ID']     # Get the vehicle ID
+end_time = time.time()
+print(f"Time taken to save images from camera 1: {end_time - start_time} seconds")
 
-    image_path = os.path.join(data_dir, image_path)
+# for index, row in file3.iterrows():
+#     image_path = row['path']  # Get the image path
+#     vehicle_id = row['ID']     # Get the vehicle ID
+
+#     image_path = os.path.join(data_dir, image_path)
     
-    if vehicle_id not in seen_vehicle_ids:
-        seen_vehicle_ids.append(vehicle_id)
+#     if vehicle_id not in seen_vehicle_ids:
+#         seen_vehicle_ids.append(vehicle_id)
     
-    fExtract.save_image_to_opensearch_db(image_path, vehicle_id, db, saving_mode)
+#     fExtract.save_image_to_opensearch_db(image_path, vehicle_id, db, saving_mode)
 
 # # _____________________________________________________________________________________#
 # # Turn vehicles from camera x (query camera) into embeddings and search in DB:
+
+start_time = time.time()
 
 for index, row in file2.iterrows():
     image_path = row['path']  # Get the image path
@@ -184,6 +192,9 @@ for index, row in file2.iterrows():
     if vehicle_id in seen_vehicle_ids:
         results_map = fExtract.compare_image_to_opensearch_db(image_path, vehicle_id, db)
         results(results_map)
+
+end_time = time.time()
+print(f"Time taken to compare images from camera 2: {end_time - start_time} seconds")
 
 # _______________________________________________________________________________________#
 

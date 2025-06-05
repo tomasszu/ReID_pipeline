@@ -1,5 +1,3 @@
-# Object Detecion 
-import cv2
 
 #basics
 import pandas as pd

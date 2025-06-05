@@ -32,13 +32,13 @@ torchvision_version = list(map(int, torchvision.__version__.split(".")[:2]))
 # --------
 
 parser = argparse.ArgumentParser(description='Test')
-parser.add_argument("--model_opts",default="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_2/opts.yaml", 
+parser.add_argument("--model_opts",default="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_3_split_ids/opts.yaml", 
                     type=str, help="model saved options")
-parser.add_argument("--checkpoint", default="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_2/net_19.pth",
+parser.add_argument("--checkpoint", default="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_3_split_ids/net_12.pth",
                     type=str, help="model checkpoint to load")
-parser.add_argument("--query_csv_path", default="/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_3/part2.csv",
+parser.add_argument("--query_csv_path", default="/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_4/part2.csv",
                     type=str, help="csv to contain query image data")
-parser.add_argument("--gallery_csv_path", default="/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_3/part1.csv",
+parser.add_argument("--gallery_csv_path", default="/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_4/part1.csv",
                     type=str, help="csv to contain gallery image data")
 parser.add_argument("--data_dir", type=str, default='/home/tomass/tomass/magistrs/video_annotating/',
                     help="root directory for image datasets")

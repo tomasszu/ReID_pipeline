@@ -112,16 +112,38 @@ def parse_vehicle_data(xml_file):
     
     return pd.DataFrame(data)
 
+def parse_vehicle_csv(csv_file):
+    """
+    Parses a CSV file containing vehicle data and returns a DataFrame.
+
+    Expected CSV structure: path,id
+
+    :param csv_file: Path to the CSV file.
+    :return: DataFrame with columns: ['imageName', 'vehicleID']
+    """
+    df = pd.read_csv(csv_file)  # Header is automatically inferred
+
+    # Rename columns to match expected output
+    df.rename(columns={'path': 'imageName', 'id': 'vehicleID'}, inplace=True)
+    # Ensure vehicleID is int
+    df['vehicleID'] = df['vehicleID'].astype(int)
+
+    return df
+
 # Example Usage
 if __name__ == "__main__":
 
     device = "cuda"
 
-    img_root = '/home/tomass/tomass/data/VeRi/image_test'
-    df = parse_vehicle_data("/home/tomass/tomass/data/VeRi/test_label.xml")
+    # img_root = '/home/tomass/tomass/data/VeRi/image_test'
+    img_root = '/home/tomass/tomass/magistrs/video_annotating'
+    #df = parse_vehicle_data("/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_4/part1.csv")
+    df = parse_vehicle_csv("/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_4/part2.csv")
 
-    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
 
+    #model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+    model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_3_split_ids/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_3_split_ids/net_12.pth", remove_classifier=True)
+    
     # Randomly select one row
     random_row = df.sample(n=1)
 

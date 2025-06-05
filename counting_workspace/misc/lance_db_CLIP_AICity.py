@@ -55,7 +55,7 @@ def query_for_ID(embedding, intersection):
   except:
     return -1
   
-def query_for_IDs(embedding, intersection, limit):
+def query_for_IDs(embedding, intersection, limit=3):
   db = create_db._init_(intersection)
 
   # Perform a search query

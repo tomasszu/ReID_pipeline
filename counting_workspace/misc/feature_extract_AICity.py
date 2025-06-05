@@ -1,6 +1,4 @@
-import time
 import numpy as np 
-import pandas as pd
 import os
 import sys
 import torch
@@ -83,40 +81,20 @@ def extract_feature(model, X, device="cuda"):
     fnorm = torch.norm(feature, p=2)
     return feature.div(fnorm)
 
-def extract_and_prune_feature(model, X, device="cuda"):
-    """Exract the embeddings of a single image tensor X"""
-    # print("X")
-    # print(X.shape)
-    if len(X.shape) == 3:
-        X = torch.unsqueeze(X, 0)
-        # print("unsqueezed X")
-        # print(X.shape)
+def extract_batch_features(model, X, device="cuda"):
+    """Extract features for a batch of images (X: B x C x H x W)"""
     X = X.to(device)
-    feature = model(X).reshape(-1)
-    # print("extracted feature")
-    # print(feature.shape)
+    features = model(X)  # shape: (B, D)
 
-    prune_indices = [237, 178, 131, 82, 23]
+    X_flipped = fliplr(X)
+    flipped_features = model(X_flipped)  # shape: (B, D)
 
-    mask = torch.ones(feature.shape, device=device, dtype=torch.bool)
-    mask[prune_indices] = False  # Set False at prune_indices
+    features += flipped_features
 
-    # Apply the mask to exclude the specified indices
-    feature = feature[mask]
+    fnorm = torch.norm(features, p=2, dim=1, keepdim=True)
+    normalized = features.div(fnorm)
+    return normalized  # shape: (B, D)
 
-
-    X = fliplr(X)
-    flipped_feature = model(X).reshape(-1)
-    mask = torch.ones(flipped_feature.shape, device=device, dtype=torch.bool)
-    mask[prune_indices] = False  # Set False at prune_indices
-
-    # Apply the mask to exclude the specified indices
-    flipped_feature = flipped_feature[mask]
-
-    feature += flipped_feature
-
-    fnorm = torch.norm(feature, p=2)
-    return feature.div(fnorm)
 
 def save_extractions_to_CSV(folder):
     import numpy as np
@@ -152,6 +130,46 @@ def save_extractions_to_CSV(folder):
             # csv_writer.writerow({COUNTER : tensor_row}) ######################PROB!
             # COUNTER = COUNTER + 1
         print("Embeddings saved to CSV.")
+
+def save_batch_to_opensearch_db(batch_image_paths, batch_vehicle_ids, db, saving_mode):
+    import numpy as np
+
+    device = "cuda"
+
+    print("Initial Memory Usage:")
+    print_gpu_memory()
+
+    global model
+    if not 'model' in globals():
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
+        # print(model)
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/net_17.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
+        #print(model)
+        model.eval()
+        model.to(device)
+        #print(model.classifier.add_block[2])
+        model.classifier.add_block[2] = nn.Sequential()
+        #print(model)
+
+    images = [Image.open(path).convert("RGB") for path in batch_image_paths]
+    X_images = torch.stack([data_transforms(img) for img in images]).to(device)
+
+    features = extract_batch_features(model, X_images)  # (B, D)
+    features = features.detach().cpu().numpy()
+
+    print("Features array Memory Usage:")
+    print_gpu_memory()
+
+    if saving_mode in [1, 3]:
+        for vehicle_id, feature_vector in zip(batch_vehicle_ids, features):
+            db.insert(vehicle_id=vehicle_id, feature_vector=feature_vector, times_summed=0)
+    else:
+        print("Error! Not provisioned vector summing operation!")
+
+    print("Save Memory Usage:")
+    print_gpu_memory()
 
 def save_image_to_opensearch_db(image_path, vehicle_id, db, saving_mode):
     import numpy as np
@@ -460,13 +478,13 @@ def save_image_to_lance_db(image_path, vehicle_id, folder_name, saving_mode):
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
         # print(model)
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/net_17.pth", remove_classifier=True)
-        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_2/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_2/net_19.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_3_split_ids/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_3_split_ids/net_12.pth", remove_classifier=True)
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
         #print(model)
         model.eval()
         model.to(device)
         #print(model.classifier.add_block[2])
-        model.classifier.add_block[2] = nn.Sequential()
+        #model.classifier.add_block[2] = nn.Sequential()
         #print(model)
 
 
@@ -514,7 +532,7 @@ def compare_image_to_lance_db(image_path, vehicle_id, queried_folder_name):
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
         model.eval()
         model.to(device)
-        model.classifier.add_block[2] = nn.Sequential()
+        #model.classifier.add_block[2] = nn.Sequential()
 
     #print(image_path)
     images = [Image.open(image_path)]

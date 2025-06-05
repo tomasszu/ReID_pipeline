@@ -4,12 +4,8 @@
 # Object Detecion 
 import glob
 import cv2
-import supervision as sv
-from ultralytics import YOLO
 
 #basics
-import pandas as pd
-import numpy as np
 import os
 import sys
 
@@ -323,14 +319,14 @@ for frame_nr in range(max_len_frames):
     #print(seen_vehicle_ids)
 
     #Show
-    # if ret1:
-    #     resized = cv2.resize(labeled_frame1, (1120, 840))
-    #     cv2.imshow("frame1", resized)
+    if ret1:
+        resized = cv2.resize(labeled_frame1, (1120, 840))
+        cv2.imshow("frame1", resized)
 
-    # if ret2:
-    #     resized2 = cv2.resize(labeled_frame2, (1120, 840))
-    #     cv2.imshow("frame2", resized2)
-    #     cv2.waitKey(0)
+    if ret2:
+        resized2 = cv2.resize(labeled_frame2, (1120, 840))
+        cv2.imshow("frame2", resized2)
+        cv2.waitKey(0)
 
     #Record
     # if ret1:

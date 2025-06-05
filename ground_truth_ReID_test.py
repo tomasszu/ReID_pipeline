@@ -1,18 +1,11 @@
 # Object Detecion 
 import glob
 import cv2
-import supervision as sv
-from ultralytics import YOLO
-
-import time
 
 #basics
-import pandas as pd
 import numpy as np
 import os
 import sys
-import re
-import copy
 
 import counting_workspace.misc.crop_AICity as detection_crop
 #No CLIP

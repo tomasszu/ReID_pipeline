@@ -113,7 +113,7 @@ def plot_tsne_col(features, labels, title="t-SNE Visualization", label_mapping=N
     reduced_features = tsne.fit_transform(features)
 
     # Convert label IDs to actual color names
-    color_names = np.array([label_mapping.get(l, "orange") for l in labels])  # Default to 'gray' if missing
+    color_names = np.array([label_mapping.get(l, "orange") for l in labels])  # Default to 'orange' if missing
 
     # Convert color names to RGB/HEX values
     color_palette = {name: mcolors.CSS4_COLORS.get(name, "orange") for name in np.unique(color_names)}
@@ -126,7 +126,7 @@ def plot_tsne_col(features, labels, title="t-SNE Visualization", label_mapping=N
                     color=color_palette[color_name], label=color_name, alpha=0.7, edgecolors='k', s=30)
 
     plt.title(title)
-    plt.legend(title="Car Colors", loc="best")
+    plt.legend(title="Transp. krāsas", loc="best")
     plt.show()
 
 def plot_tsne_type(features, labels, title="t-SNE Visualization", label_mapping=None):
@@ -160,7 +160,7 @@ def plot_tsne_type(features, labels, title="t-SNE Visualization", label_mapping=
                     color=color_map[type_name], label=type_name, alpha=0.7, edgecolors='k', s=30)
 
     plt.title(title)
-    plt.legend(title="Car Types", loc="best")
+    plt.legend(title="Uzbūves veidi", loc="best")
     plt.show()
 
 def plot_tsne_camera(features, labels, title="t-SNE by Camera", label_mapping=None):
@@ -194,7 +194,7 @@ def plot_tsne_camera(features, labels, title="t-SNE by Camera", label_mapping=No
                     color=color_map[label], label=f"{label}", alpha=0.7, edgecolors='k', s=30)
 
     plt.title(title)
-    plt.legend(title="Camera IDs", loc="best")
+    plt.legend(title="Kameras ID", loc="best")
     plt.show()
 
 def plot_tsne_vehicle_id(features, labels, title="t-SNE by Vehicle ID"):
@@ -234,7 +234,7 @@ def plot_tsne_vehicle_id(features, labels, title="t-SNE by Vehicle ID"):
 
 
 
-type_of_descriptor = 3 # 0 - color, 1 - type, 2 - camera
+type_of_descriptor = 2 # 0 - color, 1 - type, 2 - camera
 
 # Load & Parse the XML File
 df = parse_vehicle_data("/home/tomass/tomass/data/VeRi/train_label.xml")
@@ -254,7 +254,7 @@ print(df.head())  # Check updated DataFrame
 
 
 # Select a subset of images (e.g., 2000 from query set)
-num_samples = 50
+num_samples = 2000
 subset = df.sample(n=num_samples, random_state=42)
 image_paths = subset["imageName"].tolist()
 labels = subset["vehicleID"].tolist()

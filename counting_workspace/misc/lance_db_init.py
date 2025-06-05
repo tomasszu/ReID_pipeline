@@ -1,7 +1,7 @@
 import lancedb
 import pyarrow as pa
 
-def _init_(folder, features_size):
+def _init_(folder, features_size=256):
     """Initialize LanceDB with a dynamically defined feature size."""
     
     SCHEMA = pa.schema(

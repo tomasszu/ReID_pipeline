@@ -18,7 +18,10 @@ from vehicle_reid_repo2.vehicle_reid.load_model import load_model_from_opts
 from counting_workspace.misc.feature_extract_AICity import extract_feature
 
 device = "cuda"
-model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+# model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_3_split_ids/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_3_split_ids/net_12.pth", remove_classifier=True)
+
+
 model.eval()  # Set to evaluation mode
 
 # Define a transform to preprocess the image
@@ -48,11 +51,11 @@ def get_feature_maps(img):
         _ = model(img_tensor)  # Run through model to trigger hook
     return activations[layer_name]
 
-def plot_feature_maps(feature_maps, num_maps=6):
+def plot_feature_maps(feature_maps, num_maps=8):
     feature_maps = feature_maps.squeeze(0)  # Remove batch dimension
     num_maps = min(num_maps, feature_maps.shape[0])  # Limit number of maps
     
-    fig, axes = plt.subplots(1, num_maps, figsize=(15, 5))
+    fig, axes = plt.subplots(1, num_maps, figsize=(5, 3))
     for i in range(num_maps):
         axes[i].imshow(feature_maps[i].cpu().numpy(), cmap="viridis")
         axes[i].axis("off")
@@ -81,7 +84,7 @@ def parse_vehicle_data(xml_file):
     
     return pd.DataFrame(data)
 
-def plot_image_and_features(img, feature_maps, num_maps=17, grid_size=(4, 5), resize=(224, 224)):
+def plot_image_and_features(img, feature_maps, num_maps=17, grid_size=(3, 4), resize=(224, 224)):
     resize_transform = transforms.Resize(resize)
     img_resized = resize_transform(img)
 
@@ -89,19 +92,19 @@ def plot_image_and_features(img, feature_maps, num_maps=17, grid_size=(4, 5), re
     num_maps = min(num_maps, feature_maps.shape[0])  # Limit number of feature maps
     
     rows, cols = grid_size  # Rows and columns for the grid
-    fig, axes = plt.subplots(rows, cols + 1, figsize=(15, 5))  # Extra column for the original image
+    fig, axes = plt.subplots(rows, cols + 1, figsize=(3, 3))  # Extra column for the original image
     
     axes = axes.flatten()  # Flatten axes array for easier indexing
     
     # Show original image
     axes[0].imshow(img_resized)
-    axes[0].set_title("Original Image")
+    #axes[0].set_title("Orģī")
     axes[0].axis("off")
     
     # Show feature maps
     for i in range(num_maps):
         axes[i + 1].imshow(feature_maps[i].cpu().numpy(), cmap="viridis")
-        axes[i + 1].set_title(f"Feature {i+1}")
+        #axes[i + 1].set_title(f"Feature {i+1}")
         axes[i + 1].axis("off")
     
     # Turn off any unused axes
@@ -320,7 +323,23 @@ def plot_image_and_features_with_pagination(img, feature_maps, variance_threshol
     plt.show()
 
 
+def parse_vehicle_csv(csv_file):
+    """
+    Parses a CSV file containing vehicle data and returns a DataFrame.
 
+    Expected CSV structure: path,id
+
+    :param csv_file: Path to the CSV file.
+    :return: DataFrame with columns: ['imageName', 'vehicleID']
+    """
+    df = pd.read_csv(csv_file)  # Header is automatically inferred
+
+    # Rename columns to match expected output
+    df.rename(columns={'path': 'imageName', 'id': 'vehicleID'}, inplace=True)
+    # Ensure vehicleID is int
+    df['vehicleID'] = df['vehicleID'].astype(int)
+
+    return df
 
 
 
@@ -328,14 +347,17 @@ def plot_image_and_features_with_pagination(img, feature_maps, variance_threshol
 activations = {}
 
 # Choose an intermediate layer
-layer_name = "layer4"  
+layer_name = "layer3"  
 layer = dict(model.model.named_children())[layer_name]
 
 hook = layer.register_forward_hook(hook_fn)
 
 
-img_root = '/home/tomass/tomass/data/VeRi/image_test'
-df = parse_vehicle_data("/home/tomass/tomass/data/VeRi/test_label.xml")
+# img_root = '/home/tomass/tomass/data/VeRi/image_test'
+# df = parse_vehicle_data("/home/tomass/tomass/data/VeRi/test_label.xml")
+
+img_root = '/home/tomass/tomass/magistrs/video_annotating'
+df = parse_vehicle_csv("/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_4/part2.csv")
 
 
 img, path = load_random_image(df,img_root)
@@ -350,7 +372,7 @@ feature_maps = get_feature_maps(img)
 
 #COLOR
 
-# plot_image_and_features(img, feature_maps, num_maps=17)
+plot_image_and_features(img, feature_maps, num_maps=14)
 
 #plot_image_and_features_based_on_variance_color(img, feature_maps)
 
@@ -367,4 +389,4 @@ feature_maps = get_feature_maps(img)
 #plot_image_and_features_based_on_variance(img, feature_maps)
 
 #Pageanated
-plot_image_and_features_with_pagination(img, feature_maps)
+# plot_image_and_features_with_pagination(img, feature_maps)
