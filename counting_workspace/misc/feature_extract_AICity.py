@@ -4,6 +4,9 @@ import sys
 import torch
 from torchvision import transforms
 from PIL import Image
+import numpy as np
+import onnxruntime as ort
+from onnxruntime.capi.onnxruntime_pybind11_state import OrtValue
 
 import torch.nn as nn
 
@@ -31,6 +34,9 @@ from counting_workspace.misc.manual_feature_extraction import extract_manual_fea
 
 DATA_ROOT = "cropped/"
 #INTERSECTION_FOLDER = "intersection_1"
+
+# global ONNX session to reuse
+session = None
 
 
 #Image transforms probably adapted from vehicle Re-ID model code
@@ -61,6 +67,12 @@ def fliplr(img):
     img_flip = img.index_select(3, inv_idx)
     return img_flip
 
+def fliplr_numpy(img_numpy):
+    # Assume img_numpy shape: (1, C, H, W)
+    flipped = np.flip(img_numpy, axis=3).copy()  # horizontal flip along width
+    return flipped
+
+
 def extract_feature(model, X, device="cuda"):
     """Exract the embeddings of a single image tensor X"""
     # print("X")
@@ -80,6 +92,54 @@ def extract_feature(model, X, device="cuda"):
 
     fnorm = torch.norm(feature, p=2)
     return feature.div(fnorm)
+
+def extract_feature_onnx(session, X_numpy):
+    """Extract embeddings using ONNX Runtime"""
+
+    X_numpy = [X_numpy]  # ONNX expects a batch shape of (1, C, H, W)
+
+    input_names=["input"]
+    output_names=["output"]
+
+    # Forward
+    ort_inputs = {input_names[0]: X_numpy}
+    feature1 = session.run(None, ort_inputs)[0].reshape(-1)
+
+    # Flip
+    flipped = fliplr_numpy(X_numpy)
+    ort_inputs = {input_names[0]: flipped}
+    feature2 = session.run(None, ort_inputs)[0].reshape(-1)
+
+    # Sum and normalize
+    feature = feature1 + feature2
+    norm = np.linalg.norm(feature, ord=2)
+    return feature / norm
+
+def extract_batch_features_onnx(session: ort.InferenceSession, X_numpys: np.ndarray):
+    """
+    Efficient ONNX inference using GPU OrtValues and batch processing.
+    """
+
+    input_name = session.get_inputs()[0].name
+
+    def run_inference(input_np):
+        ort_input = ort.OrtValue.ortvalue_from_numpy(input_np, device_type="cuda", device_id=0)
+        ort_inputs = {input_name: ort_input}
+        ort_output = session.run_with_ort_values(None, ort_inputs)[0]
+        return ort_output.numpy()  # <-- extract NumPy array from OrtValue
+
+    features1 = run_inference(X_numpys)
+    flipped = np.flip(X_numpys, axis=3).copy()
+    features2 = run_inference(flipped)
+
+    features = features1 + features2
+
+    # Normalize
+    features_torch = torch.from_numpy(features).cuda()
+    normalized = torch.nn.functional.normalize(features_torch, dim=1)
+    return normalized.cpu().numpy()
+
+
 
 def extract_batch_features(model, X, device="cuda"):
     """Extract features for a batch of images (X: B x C x H x W)"""
@@ -131,6 +191,165 @@ def save_extractions_to_CSV(folder):
             # COUNTER = COUNTER + 1
         print("Embeddings saved to CSV.")
 
+
+def save_onnx_batch_to_opensearch_db(batch_image_paths, batch_vehicle_ids, db, saving_mode):
+
+    onnx_device = "CUDAExecutionProvider" # or CPUExecutionProvider
+
+    global session
+    if session is None:
+        so = ort.SessionOptions()
+        so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        session = ort.InferenceSession(
+            "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39_opt.onnx",
+            sess_options=so,
+            providers=[onnx_device],
+        )
+
+    images = [Image.open(path).convert("RGB") for path in batch_image_paths]
+    X_images = [data_transforms(img) for img in images]  # shape (C, H, W)
+
+    # Convert to numpy and stack into batch (B,C,H,W)
+    imgs_numpy = np.stack([img.cpu().numpy().astype(np.float32) for img in X_images], axis=0)
+
+    # Extract features batch from ONNX
+    features = extract_batch_features_onnx(session, imgs_numpy)  # shape (B, D)
+
+
+    # VEKTORA IZMERS DATUBAZEE TIEK NOMAINITS VEIDOJOT SHEEMU, NE KKUR KODAA
+
+    # Save each vector with its vehicle_id
+    if saving_mode in [1, 3]:
+        for vehicle_id, feature_vector in zip(batch_vehicle_ids, features):
+            db.insert(vehicle_id=vehicle_id, feature_vector=feature_vector, times_summed=0)
+    else:
+        print("Error! Not provisioned vector summing operation!")
+
+
+
+def save_onnx_image_to_opensearch_db(image_path, vehicle_id, db, saving_mode):
+
+    onnx_device = "CUDAExecutionProvider" # or CPUExecutionProvider
+
+
+    global session
+    if session is None:
+        so = ort.SessionOptions()
+        so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        session = ort.InferenceSession(
+            "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.onnx",
+            sess_options=so,
+            providers=[onnx_device]
+        )
+
+    image = Image.open(image_path)
+    X_image = data_transforms(image)  # shape (C, H, W)
+
+    img_numpy = X_image.cpu().numpy().astype(np.float32)
+
+    features_array = [extract_feature_onnx(session, img_numpy)]
+
+
+    # VEKTORA IZMERS DATUBAZEE TIEK NOMAINITS VEIDOJOT SHEEMU, NE KKUR KODAA
+
+    if (saving_mode == 0) or (saving_mode == 2):
+        print("Error! Not provisioned vector summing operation!><><><><><<><<><><><><><><><><><><><><><")
+    elif (saving_mode == 1) or (saving_mode == 3):
+        db.insert(vehicle_id = vehicle_id, feature_vector = features_array[0], times_summed = 0)
+
+def compare_onnx_batch_to_opensearch_db(batch_image_paths, batch_vehicle_ids, db):
+
+    onnx_device = "CUDAExecutionProvider" # or CPUExecutionProvider
+
+    global session
+    if session is None:
+        so = ort.SessionOptions()
+        so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        session = ort.InferenceSession(
+            "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39_opt.onnx",
+            sess_options=so,
+            providers=[onnx_device]
+        )
+
+    images = [Image.open(path).convert("RGB") for path in batch_image_paths]
+    X_images = [data_transforms(img) for img in images]  # shape (C, H, W)
+
+    # Convert to numpy and stack into batch (B,C,H,W)
+    imgs_numpy = np.stack([img.cpu().numpy().astype(np.float32) for img in X_images], axis=0)
+
+    # Extract features batch from ONNX
+    features = extract_batch_features_onnx(session, imgs_numpy)  # shape (B, D)
+
+    compare_array = []
+    for vehicle_id, feature_vector in zip(batch_vehicle_ids, features):
+        compare_array.append([vehicle_id, feature_vector])
+    
+    track_map = {}
+    results_map = []
+
+
+    print("From intersection 2. -> 1. :")
+    for vehicle in compare_array:
+        results = db.query_vector(vehicle[1], k=3)
+        results_map.append([vehicle[0], int(results[0][0]), results[0][1]])
+
+        print("-------------------------------")
+        if results and results != -1:
+            track_map[vehicle[0]] = [results[0][0], results[0][1]]
+            print(f"{vehicle[0]} found as ->  \n")
+            for i, result in enumerate(results):
+                id = result[0]
+                distance = result[1]
+                print(f"{id} [{distance}%]")
+
+    return results_map
+
+
+
+def compare_onnx_image_to_opensearch_db(image_path, vehicle_id, db):
+
+    onnx_device = "CUDAExecutionProvider" # or CPUExecutionProvider
+
+
+    global session
+    if session is None:
+        so = ort.SessionOptions()
+        so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        session = ort.InferenceSession(
+            "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.onnx",
+            sess_options=so,
+            providers=[onnx_device]
+        )
+    
+    image = Image.open(image_path)
+    X_image = data_transforms(image)  # shape (C, H, W)
+
+    img_numpy = X_image.cpu().numpy().astype(np.float32)
+
+    features_array = [extract_feature_onnx(session, img_numpy)]
+
+    compare_array = []
+    compare_array.append([vehicle_id, features_array[0]])
+
+
+    track_map = {}
+    results_map = []
+    print("From intersection 2. -> 1. :")
+    for vehicle in compare_array:
+        results = db.query_vector(vehicle[1], k=3)
+        results_map.append([vehicle[0],int(results[0][0]), results[0][1]])
+
+        print("-------------------------------")
+        if(results and results != -1):
+            track_map[vehicle[0]] = [results[0][0], results[0][1]]
+            print(f"{vehicle[0]} found as ->  \n")
+            for i, result in enumerate(results):
+                id = result[0]
+                distance = result[1]
+                print(f"{id} [{distance}%]")
+
+    return results_map
+
 def save_batch_to_opensearch_db(batch_image_paths, batch_vehicle_ids, db, saving_mode):
     import numpy as np
 
@@ -171,13 +390,13 @@ def save_batch_to_opensearch_db(batch_image_paths, batch_vehicle_ids, db, saving
     print("Save Memory Usage:")
     print_gpu_memory()
 
-def save_image_to_opensearch_db(image_path, vehicle_id, db, saving_mode):
+def compare_batch_to_opensearch_db(batch_image_paths, batch_vehicle_ids, db):
     import numpy as np
 
     device = "cuda"
 
-    print("Initial Memory Usage:")
-    print_gpu_memory()
+    # print("Initial Memory Usage:")
+    # print_gpu_memory()
 
     global model
     if not 'model' in globals():
@@ -193,27 +412,34 @@ def save_image_to_opensearch_db(image_path, vehicle_id, db, saving_mode):
         model.classifier.add_block[2] = nn.Sequential()
         #print(model)
 
-    images = [Image.open(image_path)]
-    X_images = torch.stack(tuple(map(data_transforms, images))).to(device)
+    images = [Image.open(path).convert("RGB") for path in batch_image_paths]
+    X_images = torch.stack([data_transforms(img) for img in images]).to(device)
 
-    features = [extract_feature(model, X_images)]
-    features = torch.stack(features).detach().cpu()
+    features = extract_batch_features(model, X_images)  # (B, D)
+    features = features.detach().cpu().numpy()
 
-    features_array = np.array(features)
+    compare_array = []
+    for vehicle_id, feature_vector in zip(batch_vehicle_ids, features):
+        compare_array.append([vehicle_id, feature_vector])
+    
+    track_map = {}
+    results_map = []
 
-    # VEKTORA IZMERS DATUBAZEE TIEK NOMAINITS VEIDOJOT SHEEMU, NE KKUR KODAA
+    print("From intersection 2. -> 1. :")
+    for vehicle in compare_array:
+        results = db.query_vector(vehicle[1], k=3)
+        results_map.append([vehicle[0], int(results[0][0]), results[0][1]])
 
-    print("Features array Memory Usage:")
-    print_gpu_memory()
+        print("-------------------------------")
+        if results and results != -1:
+            track_map[vehicle[0]] = [results[0][0], results[0][1]]
+            print(f"{vehicle[0]} found as ->  \n")
+            for i, result in enumerate(results):
+                id = result[0]
+                distance = result[1]
+                print(f"{id} [{distance}%]")
 
-    if (saving_mode == 0) or (saving_mode == 2):
-        print("Error! Not provisioned vector summing operation!><><><><><<><<><><><><><><><><><><><><><")
-    elif (saving_mode == 1) or (saving_mode == 3):
-        db.insert(vehicle_id = vehicle_id, feature_vector = features_array[0], times_summed = 0)
-
-    print("Save Memory Usage:")
-    print_gpu_memory()
-
+    return results_map
 
 def compare_image_to_opensearch_db(image_path, vehicle_id, db):
     import numpy as np
@@ -260,6 +486,49 @@ def compare_image_to_opensearch_db(image_path, vehicle_id, db):
                 print(f"{id} [{distance}%]")
 
     return results_map
+
+def save_image_to_opensearch_db(image_path, vehicle_id, db, saving_mode):
+    device = "cuda"
+
+    print("Initial Memory Usage:")
+    print_gpu_memory()
+
+    global model
+    if not 'model' in globals():
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
+        # print(model)
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/net_17.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+        # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
+        #print(model)
+        model.eval()
+        model.to(device)
+        #print(model.classifier.add_block[2])
+        model.classifier.add_block[2] = nn.Sequential()
+        #print(model)
+
+    images = [Image.open(image_path)]
+    X_images = torch.stack(tuple(map(data_transforms, images))).to(device)
+
+    features = [extract_feature(model, X_images)]
+    features = torch.stack(features).detach().cpu()
+
+    features_array = np.array(features)
+
+    # VEKTORA IZMERS DATUBAZEE TIEK NOMAINITS VEIDOJOT SHEEMU, NE KKUR KODAA
+
+    print("Features array Memory Usage:")
+    print_gpu_memory()
+
+    if (saving_mode == 0) or (saving_mode == 2):
+        print("Error! Not provisioned vector summing operation!><><><><><<><<><><><><><><><><><><><><><")
+    elif (saving_mode == 1) or (saving_mode == 3):
+        db.insert(vehicle_id = vehicle_id, feature_vector = features_array[0], times_summed = 0)
+
+    print("Save Memory Usage:")
+    print_gpu_memory()
+
+
 
 def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
     import numpy as np

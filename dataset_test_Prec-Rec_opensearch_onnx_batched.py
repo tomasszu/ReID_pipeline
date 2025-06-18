@@ -33,22 +33,33 @@ accumulative_accuracy = 0
 total_true_positives = 0
 total_false_positives = 0
 total_false_negatives = 0
-class_precisions = []
-class_recalls = []
+# Initialize lists to store class precisions and recalls for macro averaging
+# Using lists to store precision and recall values for each class
+# This will allow us to calculate macro-averaged precision and recall later
+class_precisions = {}
+class_recalls = {}
+# Initialize class counts for macro averaging
+# Using a dictionary to store counts for each class
+# This will allow us to track true positives, false positives, and false negatives for each class
 class_counts = {}
 
 
 def results(results_map):
+    global total_iters, accumulative_accuracy, total_true_positives, total_false_positives, total_false_negatives
+    global class_recalls, class_counts, class_precisions
+
     frame_findings = len(results_map)
+
+    # Increment total queries
+    
+    total_iters += frame_findings  # instead of += 1 (since we are processing batch results at once)
+
+
     if frame_findings:
-        frame_accuracy = 0
         frame_true_positives = 0
         frame_false_positives = 0
         frame_false_negatives = 0
 
-        # Increment total queries
-        global total_iters, accumulative_accuracy
-        total_iters += 1
 
         for result in results_map:
             id1, id2, distance = result
@@ -74,12 +85,7 @@ def results(results_map):
                 class_counts[id1]["FN"] += 1
                 class_counts[id2]["FP"] += 1
 
-        if frame_accuracy > 0:
-            frame_accuracy /= frame_findings
-
-
         # Update micro-averaged precision and recall
-        global total_true_positives, total_false_positives, total_false_negatives
         total_true_positives += frame_true_positives
         total_false_positives += frame_false_positives
         total_false_negatives += frame_false_negatives
@@ -111,25 +117,23 @@ def results(results_map):
             else:
                 class_recall = 0
 
-            class_precisions.append(class_precision)
-            class_recalls.append(class_recall)
+            class_precisions[class_id] = class_precision
+            class_recalls[class_id] = class_recall
 
-        if len(class_precisions) > 0:
-            macro_precision = sum(class_precisions) / len(class_precisions)
-            macro_recall = sum(class_recalls) / len(class_recalls)
-        else:
-            macro_precision = 0
-            macro_recall = 0
+            # macro computation
+            if class_precisions:
+                macro_precision = sum(class_precisions.values()) / len(class_precisions)
+                macro_recall = sum(class_recalls.values()) / len(class_recalls)
+            else:
+                macro_precision = 0
+                macro_recall = 0
 
-        # Output results
-        print("Rank-1 accuracy: ",accumulative_accuracy/total_iters )
-        
-        print("Micro Precision|Micro Recall|Macro Precision|Macro Recall")
-        print(micro_precision,"         ",micro_recall,"        ",macro_precision,"         ",macro_recall)
-        # print("Micro Precision: ", micro_precision)
-        # print("Micro Recall: ", micro_recall)
-        # print("Macro Precision: ", macro_precision)
-        # print("Macro Recall: ", macro_recall)
+
+        # Print results
+        print("Rank-1 accuracy:", accumulative_accuracy / total_iters)
+        print("Micro Precision | Micro Recall | Macro Precision | Macro Recall")
+        print(f"{micro_precision:.4f}         {micro_recall:.4f}        {macro_precision:.4f}         {macro_recall:.4f}")
+
 
 data_dir = '/home/tomass/tomass/data'
 
@@ -148,53 +152,92 @@ file3 = pd.read_csv(ground_truths_path_3)
 seen_vehicle_ids = [20]
 
 
+BATCH_SIZE = 1  # Choose based on memory/performance
+batch_image_paths = []
+batch_vehicle_ids = []
+
 #_________________________________________________________________________________________#
 # Turn vehicles from camera y, z, ... (gallery cameras) into embeddings and save in DB:
 
 start_time = time.time()
 
 for index, row in file1.iterrows():
-    image_path = row['path']  # Get the image path
-    vehicle_id = row['ID']     # Get the vehicle ID
-
-    image_path = os.path.join(data_dir, image_path)
+    image_path = os.path.join(data_dir, row['path'])
+    vehicle_id = row['ID']
     
     if vehicle_id not in seen_vehicle_ids:
         seen_vehicle_ids.append(vehicle_id)
     
-    fExtract.save_image_to_opensearch_db(image_path, vehicle_id, db, saving_mode)
+    batch_image_paths.append(image_path)
+    batch_vehicle_ids.append(vehicle_id)
+
+    if len(batch_image_paths) >= BATCH_SIZE:
+        fExtract.save_onnx_batch_to_opensearch_db(batch_image_paths, batch_vehicle_ids, db, saving_mode)
+        batch_image_paths.clear()
+        batch_vehicle_ids.clear()
+
+# Process any remaining images
+if batch_image_paths:
+    fExtract.save_onnx_batch_to_opensearch_db(batch_image_paths, batch_vehicle_ids, db, saving_mode)
+    batch_image_paths.clear()
+    batch_vehicle_ids.clear()
 
 end_time = time.time()
 print(f"Time taken to save images from camera 1: {end_time - start_time} seconds")
 
-# for index, row in file3.iterrows():
-#     image_path = row['path']  # Get the image path
-#     vehicle_id = row['ID']     # Get the vehicle ID
-
-#     image_path = os.path.join(data_dir, image_path)
-    
-#     if vehicle_id not in seen_vehicle_ids:
-#         seen_vehicle_ids.append(vehicle_id)
-    
-#     fExtract.save_image_to_opensearch_db(image_path, vehicle_id, db, saving_mode)
-
-# # _____________________________________________________________________________________#
-# # Turn vehicles from camera x (query camera) into embeddings and search in DB:
-
 start_time = time.time()
 
 for index, row in file2.iterrows():
+    image_path = os.path.join(data_dir, row['path'])
+    vehicle_id = row['ID']
+    
+    if vehicle_id not in seen_vehicle_ids:
+        seen_vehicle_ids.append(vehicle_id)
+    
+    batch_image_paths.append(image_path)
+    batch_vehicle_ids.append(vehicle_id)
+
+    if len(batch_image_paths) >= BATCH_SIZE:
+        fExtract.save_onnx_batch_to_opensearch_db(batch_image_paths, batch_vehicle_ids, db, saving_mode)
+        batch_image_paths.clear()
+        batch_vehicle_ids.clear()
+
+# Process any remaining images
+if batch_image_paths:
+    fExtract.save_onnx_batch_to_opensearch_db(batch_image_paths, batch_vehicle_ids, db, saving_mode)
+    batch_image_paths.clear()
+    batch_vehicle_ids.clear()
+
+end_time = time.time()
+print(f"Time taken to save images from camera 1: {end_time - start_time} seconds")
+
+start_time = time.time()
+
+for index, row in file3.iterrows():
     image_path = row['path']  # Get the image path
     vehicle_id = row['ID']     # Get the vehicle ID
 
     image_path = os.path.join(data_dir, image_path)
 
     if vehicle_id in seen_vehicle_ids:
-        results_map = fExtract.compare_image_to_opensearch_db(image_path, vehicle_id, db)
-        results(results_map)
+        batch_image_paths.append(image_path)
+        batch_vehicle_ids.append(vehicle_id)
+
+        if len(batch_image_paths) >= BATCH_SIZE:
+            results_map = fExtract.compare_onnx_batch_to_opensearch_db(batch_image_paths, batch_vehicle_ids, db)
+            batch_image_paths.clear()
+            batch_vehicle_ids.clear()
+            results(results_map)
+
+# Process any remaining images
+if batch_image_paths:
+    results_map = fExtract.compare_onnx_batch_to_opensearch_db(batch_image_paths, batch_vehicle_ids, db)
+    batch_image_paths.clear()
+    batch_vehicle_ids.clear()
+    results(results_map)
 
 end_time = time.time()
-print(f"Time taken to compare images from camera 2: {end_time - start_time} seconds")
+print(f"Time taken to compare images from camera 3: {end_time - start_time} seconds")
 
 # _______________________________________________________________________________________#
 
