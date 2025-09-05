@@ -75,7 +75,7 @@ def results_for_Ranking(results_map):
         retrieved_results = np.stack((retrieved_results,distances), axis=1)
         #print(retrieved_results)
 
-        correct_indices = [i for i, res in enumerate(retrieved_results) if int(res[0]) == int(id1)]
+        correct_indices = [i for i, res in enumerate(retrieved_results) if (res[0] is not None) and (int(res[0]) == int(id1))]
 
         # Rank-1 accuracy: check if the first result is correct
         if correct_indices:
@@ -92,6 +92,7 @@ def results_for_Ranking(results_map):
             total_ap += ap
         else:
             frame_accuracy += 0  # No correct match found
+
 
     # Compute averages
     frame_accuracy /= frame_findings
@@ -271,13 +272,13 @@ def filter_for_crop_zones(frame, croppable_detections, zone_of_detections):
     return labeled_frame1, croppable_detections_filtered
 
 
-video_path_1 = '/home/tomass/tomass/ReID_pipele/source_videos/AI_City_01_Itersection/vdo4.avi'
+video_path_1 = '/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c004/vdo.avi'
 ground_truths_path_1 = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c004/gt/gt.txt"
 intersection1_folder = os.path.join(sys.path[0], f'cropped/AIC22_Track1_MTMC_train_S01/1/')
 
 
-video_path_2 = '/home/tomass/tomass/ReID_pipele/source_videos/AI_City_01_Itersection/vdo1.avi'
-ground_truths_path_2 = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c001/gt/gt.txt"
+video_path_2 = '/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c005/vdo.avi'
+ground_truths_path_2 = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c005/gt/gt.txt"
 intersection2_folder = os.path.join(sys.path[0], f'cropped/AIC22_Track1_MTMC_train_S01/2/')
 
 
@@ -334,7 +335,6 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
         detection_crop.crop_from_bbox(frame1, detection[1], detection[2], 1) # (frame, vehID, bbox, intersectionNr)
         if detection[1] not in seen_vehicle_ids:
             seen_vehicle_ids.append(detection[1])
-
     #duration = time.time() - start_time
     #print(f"[t]Ground truth + Crop took {duration*1000:.2f} ms.")
 
@@ -377,12 +377,12 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
 
     #print(seen_vehicle_ids)
 
-    resized = cv2.resize(labeled_frame1, (1280, 720))
-    cv2.imshow("frame1", resized)
+    # resized = cv2.resize(labeled_frame1, (1280, 720))
+    # cv2.imshow("frame1", resized)
 
-    resized2 = cv2.resize(labeled_frame2, (1280, 720))
-    cv2.imshow("frame2", resized2)
-    cv2.waitKey(0)
+    # resized2 = cv2.resize(labeled_frame2, (1280, 720))
+    # cv2.imshow("frame2", resized2)
+    # cv2.waitKey(0)
 
     #Record
     # resized = cv2.resize(labeled_frame1, (1280, 720))
