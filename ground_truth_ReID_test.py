@@ -272,13 +272,13 @@ def filter_for_crop_zones(frame, croppable_detections, zone_of_detections):
     return labeled_frame1, croppable_detections_filtered
 
 
-video_path_1 = '/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c004/vdo.avi'
-ground_truths_path_1 = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c004/gt/gt.txt"
+video_path_1 = '/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c004/strong_fisheye_vdo.avi'
+ground_truths_path_1 = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c004/gt/gt_strong_fisheye.txt"
 intersection1_folder = os.path.join(sys.path[0], f'cropped/AIC22_Track1_MTMC_train_S01/1/')
 
 
-video_path_2 = '/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c005/vdo.avi'
-ground_truths_path_2 = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c005/gt/gt.txt"
+video_path_2 = '/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c001/strong_fisheye_vdo.avi'
+ground_truths_path_2 = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c001/gt/gt_strong_fisheye.txt"
 intersection2_folder = os.path.join(sys.path[0], f'cropped/AIC22_Track1_MTMC_train_S01/2/')
 
 
