@@ -1,0 +1,16 @@
+streams:
+  camera_4:
+    mqtt_topic: "tomass/detections_camera_4"
+    cam_id: 4
+    crop_zone_rows: 7
+    crop_zone_cols: 6
+    crop_zone_area_bottom_left: [0, 1000]
+    crop_zone_area_top_right: [1750, 320]
+
+  camera_1:
+    mqtt_topic: "tomass/detections_camera_1"
+    cam_id: 1
+    crop_zone_rows: 7
+    crop_zone_cols: 6
+    crop_zone_area_bottom_left: [200, 900]
+    crop_zone_area_top_right: [1750, 320]

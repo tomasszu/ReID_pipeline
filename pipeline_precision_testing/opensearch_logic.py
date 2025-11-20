@@ -83,11 +83,11 @@ class Opensearch_db:
         except Exception as e:
             print(f"Error deleting old docs: {e}\n")
 
-    def query_vector(self, query_vector, cam_id, k=10, threshold=0.6):
+    def query_vector(self, query_vector, cam_id, k=1, threshold=0.6): ##### !!!!!!! Pēdējais šeit, liekas, ka nomainīju lai atgriež tikai 1 result !!!!!!
         """
         Performs a k-NN search on the stored vectors using cosine similarity.
         """
-        same_camera_penalty = 0.35  # penalty for same camera queries
+        same_camera_penalty = 0.0  # penalty for same camera queries
         if self.client is None:
             print("Not connected to OpenSearch.")
             return
@@ -116,4 +116,28 @@ class Opensearch_db:
         except Exception as e:
             print(f"Error querying vector: {e}\n")
             return []
+        
+    def query_id_exists(self, vehicle_id):
+        """
+        Checks if a vehicle_id exists in the index.
+        """
+        if self.client is None:
+            print("Not connected to OpenSearch.")
+            return False
+        
+        query = {
+            "query": {
+                "term": {
+                    "vehicle_id": vehicle_id
+                }
+            }
+        }
+
+        try:
+            response = self.client.search(index=self.index_name, body=query)
+            hits = response.get("hits", {}).get("total", {}).get("value", 0)
+            return hits > 0
+        except Exception as e:
+            print(f"Error querying vehicle_id existence: {e}\n")
+            return False
 
