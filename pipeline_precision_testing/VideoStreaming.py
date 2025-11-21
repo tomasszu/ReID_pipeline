@@ -37,7 +37,7 @@ class VideoStreaming:
 
         ret, frame = self.video.read()
         if not ret:
-            return None, None, None
+            return None, None
         self.current_frame_img = frame.copy()
         
         detections = self.gt_dict.get(self.current_frame, [])

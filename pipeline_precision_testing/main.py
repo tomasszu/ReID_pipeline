@@ -5,9 +5,12 @@
 ## The plan
 ## Load in Frames with GT
 ## Pass detections through zone saving
-
+import os
 import argparse
 import yaml
+import torch
+import numpy as np
+
 
 from VideoStreaming import VideoStreaming
 from Visualizer import Visualizer
@@ -27,6 +30,12 @@ def parse_args():
 
     return parser.parse_args()
 
+def load_embedding_from_disc(path):
+    if os.path.exists(path):
+        embedding = torch.load(path).cpu().numpy()
+        return np.array(embedding)
+    else:
+        return None
 
 def main(args):
 
@@ -54,7 +63,12 @@ def main(args):
         tuple(cam_params["crop_zone_area_bottom_left"]),
         tuple(cam_params["crop_zone_area_top_right"])
     )
-    
+
+    # Optional. Tampering with embeddings
+    avg_features = load_embedding_from_disc("/home/tomass/tomass/ReID_pipele/embeddings/AI_City_Images/averaged/average_cam4.pt")
+    if avg_features is None:
+        print("[Fatal Error] Avg. embedding load failed.")
+        return
 
     # -------- Optional:  crop display or full frame visualization----------
     visualizer = Visualizer()
@@ -73,8 +87,8 @@ def main(args):
 
         # -------- Optional: full frame visualization---------------------------
         # visualizer.crop_visualizer(crops)
-        if not visualizer.visualize(frame, detections):
-            break
+        # if not visualizer.visualize(frame, detections):
+        #     break
         # ----------------------------------------------------------------------
         # 2. Crop zone filtering
         # -----------------------------------------------
@@ -98,6 +112,10 @@ def main(args):
                     features = extractor.get_features([crop])
                     if features is None:
                         break
+                    # <<<<<<<<<<<<<<<<<<<<<<<<< Testing changes to embeddings >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+                    #features = features - avg_features
+                    # <<<<<<<<<<<<<<<<<<<<<<<<< !!!!!!!!!!!!!!!!!!!!!!!!!!!!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
                     #print(features.shape()) #shape: (1, 256)
 
                     # 4. Saving features to database (Vehicle ID, Camera ID, Feature Vector)
@@ -111,7 +129,10 @@ def main(args):
         # 5. Update test results
         #------------------------------------------------
         if nr_filtered:
+            print(f"\n[Frame #{streamer.current_frame}]")
             results.display_results()
+
+    results.complete_results()
 
 
                 

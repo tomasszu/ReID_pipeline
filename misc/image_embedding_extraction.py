@@ -10,18 +10,6 @@ sys.path.append('/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2')
 
 from vehicle_reid.load_model import load_model_from_opts
 
-####### COMUNICATION FUNCTIONS ##########
-
-# def image_embedding_extract(query: str, address: str = 'http://10.13.135.161:5000/query'):
-#     """Call HPC server to return text embedding"""
-#     files = {
-#         "query": ("query", query, "text/plain"),
-#     }
-#     response = requests.post(address, files=files)
-#     txt_embed = np.frombuffer(response.content, dtype=np.float64)
-
-#     print(txt_embed.shape) # you can remove this
-#     return txt_embed
 
 def image_batch_embedding_extract(path, batch, output_path, model, data_transforms, device):
     if len(batch) > 0:
@@ -34,7 +22,8 @@ def image_batch_embedding_extract(path, batch, output_path, model, data_transfor
         X_images = torch.stack(tuple(map(data_transforms, image_batch))).to(device)
         features = extract_batch_features(model, X_images)
         for feature, file in zip(features, batch):
-            torch.save(feature.clone().detach(), f'{output_path}/{file}.pt') 
+            if not os.path.exists(f'{output_path}/{file}.pt'):
+                torch.save(feature.clone().detach(), f'{output_path}/{file}.pt')
         # print("[DEBUG] extracted batch features: \n")
         # print(features.shape)
     else: return
@@ -72,7 +61,7 @@ if __name__ == "__main__":
     input_path = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c004/dataset"
     output_path = "embeddings/AI_City_Images/cam4"
     dir_list = os.listdir(input_path)
-    dir_list = dir_list[:10]
+    dir_list = dir_list
     print(f"[File import] Read in {len(dir_list)} files.")
 
     batchsize = 16
