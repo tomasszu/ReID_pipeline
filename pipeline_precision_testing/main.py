@@ -114,7 +114,8 @@ def main(args):
                         break
                     # <<<<<<<<<<<<<<<<<<<<<<<<< Testing changes to embeddings >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-                    #features = features - avg_features
+                    # contrast = features - avg_features
+                    # features = contrast / np.linalg.norm(contrast)
                     # <<<<<<<<<<<<<<<<<<<<<<<<< !!!!!!!!!!!!!!!!!!!!!!!!!!!!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
                     #print(features.shape()) #shape: (1, 256)
 
@@ -133,8 +134,6 @@ def main(args):
             results.display_results()
 
     results.complete_results()
-
-
                 
         #print(f"Frame {streamer.current_frame -1}: {nr_filtered} filtered detections")
             

@@ -83,7 +83,7 @@ class Opensearch_db:
         except Exception as e:
             print(f"Error deleting old docs: {e}\n")
 
-    def query_vector(self, query_vector, cam_id, k=1, threshold=0.91):
+    def query_vector(self, query_vector, cam_id, k=1, threshold=0.92):
         """
         Performs a k-NN search on the stored vectors using cosine similarity.
         """

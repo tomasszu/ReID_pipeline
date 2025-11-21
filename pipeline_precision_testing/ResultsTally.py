@@ -31,5 +31,5 @@ class ResultsTally:
         print(f"Accuracy: {accuracy*100}%. (All classifications that were correct, whether positive or negative)")
         print(f"Recall/TPR: {tpr*100}%. (tp / tp + fn) Use when false negatives are more expensive than false positives.)")
         print(f"FPR: {fpr*100}%. (fp / fp + tn) Probability of false alarm. Use when false positives are more expensive.)")
-        print(f"Precision: {fpr*100}%. (fp / fp + tn) Probability of false alarm. Use when false positives are more expensive.)")
+        print(f"Precision: {precision*100}%. (tp / tp + fp) Use when it's very important for positive predictions to be accurate.)")
         print("===========================================")

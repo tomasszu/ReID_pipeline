@@ -22,4 +22,5 @@ if __name__ == "__main__":
     
 
     average_embedding = torch.mean(torch.tensor(embeddings), dim=0)
+    avg = average_embedding / average_embedding.norm()  # L2-normalize since we will use it for contrastivewith L2 normalised vectors
     torch.save(average_embedding, f'/home/tomass/tomass/ReID_pipele/embeddings/AI_City_Images/averaged/average_cam4.pt')
