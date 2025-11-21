@@ -110,7 +110,8 @@ def main(args):
 
         # 5. Update test results
         #------------------------------------------------
-        results.display_results()
+        if nr_filtered:
+            results.display_results()
 
 
                 

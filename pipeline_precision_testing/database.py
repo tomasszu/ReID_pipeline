@@ -33,7 +33,7 @@ class Database:
 
             if filtered_result:
                 print(f"{id} from {cam_id}. cam found in database as: {filtered_result[0]}\n")
-                if int(filtered_result[0]) == int(id):
+                if int(filtered_result[0][0]) == int(id):
                     self.insert(id, vector, cam_id)
                     self.secondary_hits_count += 1
                     self.total_secondary_queries += 1
