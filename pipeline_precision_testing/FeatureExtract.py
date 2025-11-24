@@ -50,6 +50,40 @@ class FeatureExtractor:
         fnorm = torch.norm(feature, p=2)
         return feature.div(fnorm)
     
+    def extract_batch_features(self, X):
+        """Extract features for a batch of images (X: B x C x H x W)"""
+        X = X.to(self.device)
+        features = self.model(X)  # shape: (B, D)
+
+        X_flipped = self.fliplr(X)
+        flipped_features = self.model(X_flipped)  # shape: (B, D)
+
+        features += flipped_features
+
+        fnorm = torch.norm(features, p=2, dim=1, keepdim=True)
+        normalized = features.div(fnorm)
+        return normalized  # shape: (B, D)
+    
+    def get_features_batch(self, images):
+        # First check if image is of PIL type for the transforms functions
+        if isinstance(images[0], Image.Image.__class__):
+            # If image is PIL type, proceed
+            X_images = torch.stack(tuple(map(self.data_transforms, images))).to(self.device)
+        else:
+            # If not, try converting from numpy array
+            try:
+                images = [Image.fromarray(im) for im in images]
+                X_images = torch.stack(tuple(map(self.data_transforms, images))).to(self.device)
+            except:
+                print("[Feature Extraction] Error: could not convert crops to PIL Images for transformation.")
+                return None
+
+        features = self.extract_batch_features(X_images)
+        features = features.detach().cpu()
+        features_array = np.array(features)
+
+        return features_array
+    
     def get_features(self, images, device="cuda"):
 
         # First check if image is of PIL type for the transforms functions
