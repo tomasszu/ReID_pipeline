@@ -88,8 +88,8 @@ def save_extractions_to_vector_db(folder_path, folder_name):
     import re
     #from misc.database import Vehicles
     import misc.database_init as create_db
-    from misc.database import add_vehicle
-    from misc.database import query
+    from misc.opensearchDatabaseOperations import add_vehicle
+    from misc.opensearchDatabaseOperations import query
 
     from docarray import DocList
     import numpy as np
