@@ -65,7 +65,7 @@ class EmbeddingsFromGT:
     def add_embedding_to_dict(self):
 
         total_frames = int(self.vdo.get(cv2.CAP_PROP_FRAME_COUNT))
-        curr_frame = 880  ### <<<<<<<<<<<<<<<<<<<<<<< Moš es tgd salaboju ar to ka continue clause nebija tas curr_frame +=1, tapec vins ieciklejas ???? >>>>>>>>>>>>>>>>>>>>>>>>>>
+        curr_frame = 1  ### <<<<<<<<<<<<<<<<<<<<<<< Moš es tgd salaboju ar to ka continue clause nebija tas curr_frame +=1, tapec vins ieciklejas ???? >>>>>>>>>>>>>>>>>>>>>>>>>>
 
         while curr_frame <= total_frames:
             ret, frame = self.vdo.read()
