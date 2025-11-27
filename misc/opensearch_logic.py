@@ -1,4 +1,5 @@
 from opensearchpy import OpenSearch
+from opensearchpy.helpers import scan
 import time
 
 class Opensearch_db:
