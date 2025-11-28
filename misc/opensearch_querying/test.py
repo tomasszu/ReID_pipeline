@@ -10,7 +10,39 @@ from collections import defaultdict
 import numpy as np
 
 
+def calculate_center_point(bbox):
+    x_min, y_min, x_max, y_max = bbox
+    center_x = (x_min + x_max) / 2
+    center_y = (y_min + y_max) / 2
+    return (center_x, center_y)
 
+def filter_cp(center_point, cam_id):
+    x, y = center_point
+
+    if cam_id == "S01c004":
+        # bound bottom left
+        bl = (0, 1000)
+        # bound top right
+        tr = (1750, 320)
+        if bl[0] <= x <= tr[0] and tr[1] <= y <= bl[1]:
+            return True
+    elif cam_id == "S01c001":
+        bl = (200, 900)
+        tr = (1750, 320)
+        if bl[0] <= x <= tr[0] and tr[1] <= y <= bl[1]:
+            return True
+    elif cam_id == "S01c002":
+        bl = (200, 900)
+        tr = (1750, 320)
+        if bl[0] <= x <= tr[0] and tr[1] <= y <= bl[1]:
+            return True
+    elif cam_id == "S01c003":
+        bl = (200, 900)
+        tr = (1750, 270)
+        if bl[0] <= x <= tr[0] and tr[1] <= y <= bl[1]:
+            return True
+
+    return False
 
 
 def query_two_fields(db, index_name):
@@ -73,8 +105,11 @@ def gather_and_filter_rows(db, index_name):
         cam = src["camera_id"]
         frame = np.array(src["frame_id"], dtype=np.float32)
 
-        embeddings[iter] = ((frame, cam, veh, bbox))
-        iter += 1
+        center_point = calculate_center_point(bbox)
+
+        if filter_cp(center_point, cam):
+            embeddings[iter] = ((frame, cam, veh, bbox))
+            iter += 1
 
     print(f"Loaded embeddings for {len(embeddings)} vehicles.")
 

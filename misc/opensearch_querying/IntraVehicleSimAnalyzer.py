@@ -30,6 +30,43 @@ class IntraVehicleAnalyzer:
         self.cross_camera_raw = defaultdict(list)
         # self.cross_camera_raw[(camA, camB)] = [raw sim values]
 
+    # DATA FILTER FUNCTIONS
+    #---------------------------------------------------------------------
+
+    def calculate_center_point(self, bbox):
+        x_min, y_min, x_max, y_max = bbox
+        center_x = (x_min + x_max) / 2
+        center_y = (y_min + y_max) / 2
+        return (center_x, center_y)
+    
+    def filter_cp(self, center_point, cam_id):
+        x, y = center_point
+
+        if cam_id == "S01c004":
+            # bound bottom left
+            bl = (0, 1000)
+            # bound top right
+            tr = (1750, 320)
+            if bl[0] <= x <= tr[0] and tr[1] <= y <= bl[1]:
+                return True
+        elif cam_id == "S01c001":
+            bl = (200, 900)
+            tr = (1750, 320)
+            if bl[0] <= x <= tr[0] and tr[1] <= y <= bl[1]:
+                return True
+        elif cam_id == "S01c002":
+            bl = (200, 900)
+            tr = (1750, 320)
+            if bl[0] <= x <= tr[0] and tr[1] <= y <= bl[1]:
+                return True
+        elif cam_id == "S01c003":
+            bl = (200, 900)
+            tr = (1750, 270)
+            if bl[0] <= x <= tr[0] and tr[1] <= y <= bl[1]:
+                return True
+
+        return False
+
 
     # ---------------------------------------------------------------------
     # DATA LOADING
@@ -51,11 +88,15 @@ class IntraVehicleAnalyzer:
         for doc in scroll:
             src = doc["_source"]
 
-            veh = src["vehicle_id"]
+            bbox = src["bbox"]
             cam = src["camera_id"]
-            emb = np.array(src["feature_vector"], dtype=np.float32)
+            center_point = self.calculate_center_point(bbox)
 
-            self.embeddings[veh][cam].append(emb)
+            if self.filter_cp(center_point, cam):
+                veh = src["vehicle_id"]            
+                emb = np.array(src["feature_vector"], dtype=np.float32)
+
+                self.embeddings[veh][cam].append(emb)
 
 
     # ---------------------------------------------------------------------
@@ -127,6 +168,7 @@ class IntraVehicleAnalyzer:
             "p0013": float(np.percentile(vals, 0.13)),
             "p02": float(np.percentile(vals, 2)),
             "p05": float(np.percentile(vals, 5)),
+            "p10": float(np.percentile(vals, 10)),
         }
 
 
@@ -161,7 +203,7 @@ class IntraVehicleAnalyzer:
         """
         Saves exactly one row per camera.
         """
-        fieldnames = ["camera_id", "count", "mean", "std", "p0013", "p02", "p05"]
+        fieldnames = ["camera_id", "count", "mean", "std", "p0013", "p02", "p05", "p10"]
         with open(path, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=fieldnames)
             w.writeheader()
@@ -173,7 +215,7 @@ class IntraVehicleAnalyzer:
         """
         Saves one row per (camA, camB) pair.
         """
-        fieldnames = ["camera_a", "camera_b", "count", "mean", "std", "p0013", "p02", "p05"]
+        fieldnames = ["camera_a", "camera_b", "count", "mean", "std", "p0013", "p02", "p05", "p10"]
         with open(path, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=fieldnames)
             w.writeheader()
@@ -185,7 +227,7 @@ class IntraVehicleAnalyzer:
         """
         Saves one row per (veh_id, cam_id) pair.
         """
-        fieldnames = ["vehicle_id", "camera_id", "count", "mean", "std", "p0013", "p02", "p05"]
+        fieldnames = ["vehicle_id", "camera_id", "count", "mean", "std", "p0013", "p02", "p05", "p10"]
         with open(path, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=fieldnames)
             w.writeheader()
