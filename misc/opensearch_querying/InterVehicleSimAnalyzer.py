@@ -26,15 +26,14 @@ class InterVehicleAnalyzer:
 
         self.all_negative_raw = []
 
-        self.same_cam_pos_raw = defaultdict(list)
-        # self.same_cam_pos_raw[cam_id] = [all raw similarity vals]
+        self.same_cam_pos_raw = []
+        # self.same_cam_pos_raw = [all raw similarity vals]
 
-        self.cross_cam_pos_raw = defaultdict(list)
+        self.cross_cam_pos_raw = []
 
-        self.same_cam_neg_raw = defaultdict(list)
-        # self.same_cam_neg_raw[cam_id] = [all raw similarity vals]
+        self.same_cam_neg_raw = []
 
-        self.cross_cam_neg_raw = defaultdict(list)
+        self.cross_cam_neg_raw = []
 
         self.per_camera_raw = defaultdict(list)
         # self.per_camera_raw[cam_id] = [all raw similarity vals]
@@ -125,7 +124,8 @@ class InterVehicleAnalyzer:
         vehicle_ids = list(self.embeddings.keys())
         camera_ids = self._collect_camera_ids()
 
-        for veh_id in vehicle_ids:
+        for vi, veh_id in enumerate(vehicle_ids):
+            print(f"[DEBUG] Processing vehicle id: {veh_id}")
 
             cams = self.embeddings[veh_id].keys()
 
@@ -156,37 +156,37 @@ class InterVehicleAnalyzer:
             #         sim = cosine_similarity(arr1, arr2).flatten()
             #         self.cross_camera_raw[(c1, c2)].extend(sim.tolist())
 
-            # 3) SAME VEHICLE STATS (Positives) ACROSS ALL CAMERAS -----------------------------
-            all_embs = []
-            for cam_id in cams:
-                all_embs.extend(self.embeddings[veh_id][cam_id])
-            all_arr =  np.array(all_embs)
-            if len(all_arr) < 2:
-                continue
-            sim = cosine_similarity(all_arr, all_arr)
-            vals = sim[np.triu_indices_from(sim, k=1)]
+            # # 3) SAME VEHICLE STATS (Positives) ACROSS ALL CAMERAS -----------------------------
+            # all_embs = []
+            # for cam_id in cams:
+            #     all_embs.extend(self.embeddings[veh_id][cam_id])
+            # all_arr =  np.array(all_embs)
+            # if len(all_arr) < 2:
+            #     continue
+            # sim = cosine_similarity(all_arr, all_arr)
+            # vals = sim[np.triu_indices_from(sim, k=1)]
 
-            # store per-vehicle stats
-            self.per_vehicle_stats[veh_id] = self._compute_stat_dict(vals)
+            # # store per-vehicle stats
+            # self.per_vehicle_stats[veh_id] = self._compute_stat_dict(vals)
 
-            # store all raw positive vals
-            self.all_positive_raw.extend(vals.tolist())
+            # # store all raw positive vals
+            # self.all_positive_raw.extend(vals.tolist())
 
 
-            # 4) OTHER VEHICLES (Negatives) STATS ACROSS ALL CAMERAS -----------------------------
+            # # 4) OTHER VEHICLES (Negatives) STATS ACROSS ALL CAMERAS -----------------------------
 
-            for other_veh_id in vehicle_ids:
-                if other_veh_id == veh_id:
-                    continue
-                other_embs = []
-                for cam_id in self.embeddings[other_veh_id].keys():
-                    other_embs.extend(self.embeddings[other_veh_id][cam_id])
-                other_arr = np.array(other_embs)
-                if len(other_arr) < 1:
-                    continue
-                sim = cosine_similarity(all_arr, other_arr).flatten()
-                # store all raw negative vals
-                self.all_negative_raw.extend(sim.tolist())
+            # for other_veh_id in vehicle_ids:
+            #     if other_veh_id == veh_id:
+            #         continue
+            #     other_embs = []
+            #     for cam_id in self.embeddings[other_veh_id].keys():
+            #         other_embs.extend(self.embeddings[other_veh_id][cam_id])
+            #     other_arr = np.array(other_embs)
+            #     if len(other_arr) < 1:
+            #         continue
+            #     sim = cosine_similarity(all_arr, other_arr).flatten()
+            #     # store all raw negative vals
+            #     self.all_negative_raw.extend(sim.tolist())
 
             # 5) Same camera positives and negatives -----------------------------------
 
@@ -197,30 +197,74 @@ class InterVehicleAnalyzer:
                         # Positives
                         sim = cosine_similarity(arr, arr)
                         vals = sim[np.triu_indices_from(sim, k=1)]
-                        self.same_cam_pos_raw[cam_id].extend(vals.tolist())
+                        self.same_cam_pos_raw.extend(vals.tolist())
                 else:
                     continue
                 # Negatives
-                for other_veh_id in vehicle_ids:
-                    if other_veh_id == veh_id:
-                        continue
+                for vj in range(vi + 1,len(vehicle_ids)):
+                    other_veh_id = vehicle_ids[vj]
+
                     if cam_id in self.embeddings[other_veh_id]:
                         other_arr = np.array(self.embeddings[other_veh_id][cam_id])
                         if len(other_arr) >= 1:
                             sim = cosine_similarity(arr, other_arr).flatten()
-                            self.same_cam_neg_raw[cam_id].extend(sim.tolist())
+                            self.same_cam_neg_raw.extend(sim.tolist())
             
 
 
             # 6) Cross camera positives and negatives -----------------------------------
 
-            ### Te mēs pabeidzām pagājušoreiz.
+            cam_list = list(cams)
+            for i in range(len(cam_list)):
+                for j in range(i + 1, len(cam_list)):
+                    c1, c2 = cam_list[i], cam_list[j]
+
+                    arr1 = np.array(self.embeddings[veh_id][c1])
+                    arr2 = np.array(self.embeddings[veh_id][c2])
+
+                    sim = cosine_similarity(arr1, arr2).flatten()
+                    self.cross_cam_pos_raw.extend(sim.tolist())
+            
+            compared_cached = set()
+            # --- NEGATIVES (different vehicles, cross-camera only, no duplicates) ---
+            for camA in cams:
+                arrA = np.array(self.embeddings[veh_id][camA])
+
+                for vj in range(vi + 1,len(vehicle_ids)):
+                    other_veh_id = vehicle_ids[vj]
+
+                    for camB, other_embs in self.embeddings[other_veh_id].items():
+
+                        # skip same camera comparisons → those belong to same_cam_neg_raw
+                        if camA == camB:
+                            continue
+
+                        # build symmetric pair key
+                        pair_key = tuple(sorted([
+                            (veh_id, camA),
+                            (other_veh_id, camB)
+                        ]))
+
+                        # check duplicates (both directions)
+                        if pair_key in compared_cached:
+                            continue
+
+                        arrB = np.array(other_embs)
+                        if len(arrB) == 0:
+                            continue
+
+                        sim = cosine_similarity(arrA, arrB).flatten()
+                        self.cross_cam_neg_raw.extend(sim.tolist())
+
+                        compared_cached.add(pair_key)
                 
+            
                 
 
         # AFTER PROCESSING ALL VEHICLES -----------------------------------
-        self._compute_all_positive_stats()
-        self._compute_all_negative_stats()
+        #commented out if you only want diagrams
+        # self._compute_all_positive_stats()
+        # self._compute_all_negative_stats()
 
 
     # ---------------------------------------------------------------------
@@ -271,6 +315,7 @@ class InterVehicleAnalyzer:
         self.all_neg_stats = self._compute_neg_stat_dict(arr)
 
 
+
     def _compute_per_camera_stats(self):
         """
         Pools all raw vals per camera (exact).
@@ -299,6 +344,7 @@ class InterVehicleAnalyzer:
 
 
     def plot_similarity_distributions(self):
+        # uses 3.) and 4.) from compute_stats()
         pos_vals = self.all_positive_raw
         neg_vals = self.all_negative_raw
         pos_vals = np.array(pos_vals)
@@ -326,6 +372,50 @@ class InterVehicleAnalyzer:
         plt.grid(True)
         plt.tight_layout()
         plt.savefig("misc/opensearch_querying/results/inter_vehicle_similarity_distribution.png")
+        plt.show()
+
+    def plot_similarity_distributions2(self):
+        # This one includes the same-camera and cross-camera distributions separately
+        # aka using the distributions for same-cam positives, cross-cam positives, same-cam negatives, cross-cam negatives
+        # Uses 5.) and 6.) from compute_stats()
+
+        pos_vals_same = np.array(self.same_cam_pos_raw)
+        pos_vals_cross = np.array(self.cross_cam_pos_raw)
+        neg_vals_same = np.array(self.same_cam_neg_raw)
+        neg_vals_cross = np.array(self.cross_cam_neg_raw)
+
+        # Optional smooth curves
+        print("[DEBUG] Computing KDEs...")
+        pos_kde1 = gaussian_kde(pos_vals_same)
+        pos_kde2 = gaussian_kde(pos_vals_cross)
+        neg_kde1 = gaussian_kde(neg_vals_same)
+        neg_kde2 = gaussian_kde(neg_vals_cross)
+
+        x = np.linspace(-0.25, 1, 400)
+
+        plt.figure(figsize=(10, 5))
+
+        # Histograms
+        print("[DEBUG] Plotting histograms...")
+        plt.hist(pos_vals_same, bins=50, density=True, alpha=0.4, label="Positive (same camera)")
+        plt.hist(pos_vals_cross, bins=75, density=True, alpha=0.4, label="Positive (different camera)")
+        plt.hist(neg_vals_same, bins=100, density=True, alpha=0.4, label="Negative (same camera)")
+        plt.hist(neg_vals_cross, bins=100, density=True, alpha=0.4, label="Negative (different camera)")
+
+        # Smooth lines
+        print("[DEBUG] Plotting KDE lines...")
+        plt.plot(x, pos_kde1(x), linewidth=2)
+        plt.plot(x, pos_kde2(x), linewidth=2)
+        plt.plot(x, neg_kde1(x), linewidth=2)
+        plt.plot(x, neg_kde2(x), linewidth=2)
+
+        print("[DEBUG] Finalizing plot...")
+        plt.xlabel("Cosine similarity")
+        plt.ylabel("Density")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig("misc/opensearch_querying/results/inter_vehicle_similarity_distribution2.png")
         plt.show()
         
 

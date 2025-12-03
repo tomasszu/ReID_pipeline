@@ -29,4 +29,4 @@ an.compute_stats()
 # an.save_pos_stats_csv("misc/opensearch_querying/results/positive_inter_similarity_variance.csv")
 # an.save_neg_stats_csv("misc/opensearch_querying/results/negative_inter_similarity_variance.csv")
 
-an.plot_similarity_distributions()
+an.plot_similarity_distributions2()
