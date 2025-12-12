@@ -6,6 +6,8 @@ from opensearchpy.helpers import scan
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 
+from scipy.stats import entropy
+
 class InterVehicleAnalyzer:
 
     def __init__(self, db, index_name):
@@ -108,6 +110,8 @@ class InterVehicleAnalyzer:
                 emb = np.array(src["feature_vector"], dtype=np.float32)
 
                 self.embeddings[veh][cam].append(emb)
+
+
 
 
     # ---------------------------------------------------------------------
@@ -385,11 +389,11 @@ class InterVehicleAnalyzer:
         neg_vals_cross = np.array(self.cross_cam_neg_raw)
 
         # Optional smooth curves
-        print("[DEBUG] Computing KDEs...")
-        pos_kde1 = gaussian_kde(pos_vals_same)
-        pos_kde2 = gaussian_kde(pos_vals_cross)
-        neg_kde1 = gaussian_kde(neg_vals_same)
-        neg_kde2 = gaussian_kde(neg_vals_cross)
+        # print("[DEBUG] Computing KDEs...")
+        # pos_kde1 = gaussian_kde(pos_vals_same)
+        # pos_kde2 = gaussian_kde(pos_vals_cross)
+        # neg_kde1 = gaussian_kde(neg_vals_same)
+        # neg_kde2 = gaussian_kde(neg_vals_cross)
 
         x = np.linspace(-0.25, 1, 400)
 
@@ -404,10 +408,10 @@ class InterVehicleAnalyzer:
 
         # Smooth lines
         print("[DEBUG] Plotting KDE lines...")
-        plt.plot(x, pos_kde1(x), linewidth=2)
-        plt.plot(x, pos_kde2(x), linewidth=2)
-        plt.plot(x, neg_kde1(x), linewidth=2)
-        plt.plot(x, neg_kde2(x), linewidth=2)
+        # plt.plot(x, pos_kde1(x), linewidth=2)
+        # plt.plot(x, pos_kde2(x), linewidth=2)
+        # plt.plot(x, neg_kde1(x), linewidth=2)
+        # plt.plot(x, neg_kde2(x), linewidth=2)
 
         print("[DEBUG] Finalizing plot...")
         plt.xlabel("Cosine similarity")
@@ -417,7 +421,41 @@ class InterVehicleAnalyzer:
         plt.tight_layout()
         plt.savefig("misc/opensearch_querying/results/inter_vehicle_similarity_distribution2.png")
         plt.show()
-        
+
+    
+    # ---------------------------------------------------------------------
+    # PRINT STATS
+    # ---------------------------------------------------------------------
+
+    def print_KL_divergence(self,a,b, bins=100):
+
+        # Printing Kullbach-Leibner divergence between two probability distributions
+
+        p_hist, bin_edges = np.histogram(a, bins=bins, range=(-0.25, 1.0), density=True)
+        q_hist, _ = np.histogram(b, bins=bin_edges, density=True)
+
+        # avoid zero values
+        p_hist += 1e-9
+        q_hist += 1e-9
+
+        kl_value = entropy(p_hist, q_hist) # KL divergence D_KL(P || Q)
+
+        print(f"KL Divergence: {kl_value}")
+
+    def sample_info(self, name, arr):
+        # print sample info abt a distribution array values
+        arr = np.asarray(arr)
+        print(name)
+        print(" count:", arr.size)
+        print(" unique values:", np.unique(arr).size)
+        vals, counts = np.unique(arr.round(6), return_counts=True)  # round -> group near-equal
+        top = sorted(zip(counts, vals), reverse=True)[:10]
+        print(" top repeat values (count, value):", top)
+        print(" min/max:", arr.min(), arr.max())
+        print(" mean/std:", arr.mean(), arr.std())
+        print(" percentiles 1,5,10,25,50,75,90,95,99:", np.percentile(arr, [1,5,10,25,50,75,90,95,99]))
+        print()
+
 
 
     # ---------------------------------------------------------------------

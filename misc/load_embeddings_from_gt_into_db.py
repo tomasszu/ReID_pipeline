@@ -112,9 +112,9 @@ def main():
     db = Database()
 
     # try:
-    embedder = EmbeddingsFromGT(vdo_path = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c004/vdo.avi",
-                                    gt_path = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c004/gt/gt.txt",
-                                    cam_id = "S01c004",
+    embedder = EmbeddingsFromGT(vdo_path = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c003/vdo.avi",
+                                    gt_path = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c003/gt/gt.txt",
+                                    cam_id = "S01c003",
                                     split = "train")
     embedder.save_dict_to_db(db)
     # except:

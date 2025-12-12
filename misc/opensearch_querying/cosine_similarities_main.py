@@ -21,7 +21,7 @@ db = Opensearch_db("localhost", 9200, ("admin", "admin"))
 # FOR INTER-VEHICLE SIMILARITY ANALYSIS (similarities across vehicle id clusters)
 #---------------------------------------------------------------------------------
 
-an = InterVehicleAnalyzer(db, "vehicle_vectors")
+an = InterVehicleAnalyzer(db, "vehicle_vectors2")
 an.load_all_embeddings()
 an.compute_stats()
 
@@ -30,3 +30,15 @@ an.compute_stats()
 # an.save_neg_stats_csv("misc/opensearch_querying/results/negative_inter_similarity_variance.csv")
 
 an.plot_similarity_distributions2()
+
+# PRINT STATS
+print("Divergence starp same un cross cam negative similarities")
+an.print_KL_divergence(an.same_cam_neg_raw, an.cross_cam_neg_raw)
+
+print("Divergence starp positive un negative similarities distributions (cross camera)")
+an.print_KL_divergence(an.cross_cam_neg_raw, an.cross_cam_pos_raw)
+
+an.sample_info("pos_cross", an.cross_cam_pos_raw)
+an.sample_info("pos_same", an.same_cam_pos_raw)
+an.sample_info("neg_cross", an.cross_cam_neg_raw)
+an.sample_info("neg_same", an.same_cam_neg_raw)

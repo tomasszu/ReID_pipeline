@@ -3,7 +3,7 @@ from opensearchpy.helpers import scan
 import time
 
 class Opensearch_db:
-    def __init__(self, host, port, auth, index_name="vehicle_vectors"):
+    def __init__(self, host, port, auth, index_name="vehicle_vectors2"):
         self.host = host
         self.port = port
         self.auth = auth

@@ -11,8 +11,8 @@ from vehicle_reid.load_model import load_model_from_opts
 class FeatureExtractor:
     def __init__(self):
         self.device = "cuda"
-        self.model = load_model_from_opts("vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", 
-                                     ckpt="vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", 
+        self.model = load_model_from_opts("vehicle_reid_repo2/vehicle_reid/model/main_finetune_editminer_121225/opts.yaml", 
+                                     ckpt="vehicle_reid_repo2/vehicle_reid/model/main_finetune_editminer_121225/net_40.pth", 
                                      remove_classifier=True)
         self.model.eval()
         self.model.to(self.device)
