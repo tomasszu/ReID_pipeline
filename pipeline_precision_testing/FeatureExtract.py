@@ -12,7 +12,7 @@ class FeatureExtractor:
     def __init__(self):
         self.device = "cuda"
         self.model = load_model_from_opts("vehicle_reid_repo2/vehicle_reid/model/main_finetune_editminer_121225/opts.yaml", 
-                                     ckpt="vehicle_reid_repo2/vehicle_reid/model/main_finetune_editminer_121225/net_40.pth", 
+                                     ckpt="vehicle_reid_repo2/vehicle_reid/model/main_finetune_editminer_121225/net_45.pth", 
                                      remove_classifier=True)
         self.model.eval()
         self.model.to(self.device)

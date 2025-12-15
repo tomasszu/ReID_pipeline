@@ -111,17 +111,21 @@ def main():
 
     db = Database()
 
-    # try:
-    embedder = EmbeddingsFromGT(vdo_path = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c003/vdo.avi",
-                                    gt_path = "/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c003/gt/gt.txt",
-                                    cam_id = "S01c003",
-                                    split = "train")
-    embedder.save_dict_to_db(db)
-    # except:
-    #     print("[Main] Embeddings not properly loaded.")
-    #     return
+    #load_all_cams:
 
-    # cv2.destroyAllWindows()5
+    for i in range(1,5):
+
+        # try:
+        embedder = EmbeddingsFromGT(vdo_path = f"/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c00{i}/vdo.avi",
+                                        gt_path = f"/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c00{i}/gt/gt.txt",
+                                        cam_id = f"S01c00{i}",
+                                        split = "train")
+        embedder.save_dict_to_db(db)
+        # except:
+        #     print("[Main] Embeddings not properly loaded.")
+        #     return
+
+        # cv2.destroyAllWindows()5
 
 
 if __name__ == "__main__":

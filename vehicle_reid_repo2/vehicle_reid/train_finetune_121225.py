@@ -38,7 +38,7 @@ from random_erasing import RandomErasing
 from circle_loss import CircleLoss, convert_label_to_similarity
 from instance_loss import InstanceLoss
 from load_model import load_model_from_opts
-from dataset import ImageDatasetWCam, BatchSamplerCrossCam
+from dataset import ImageDatasetWCam, BatchSampler
 
 """"
 12.12.2025
@@ -65,7 +65,7 @@ parser.add_argument("--val_csv_path", default='/home/tomass/tomass/data/VeRi/val
 #parser.add_argument("--val_csv_path", default='/home/toms.zinars/tomass/data/VeRi_VehicX/VeRi+VehicX_val.csv', type=str)
 
 # By main i mean veri+vehiclex_editTrainPar1
-parser.add_argument('--name', default='main_finetune_editbatcher_121225',
+parser.add_argument('--name', default='main_samples_pc_5_151225',
                     type=str, help='output model name')
 
 parser.add_argument('--gpu_ids', default='0', type=str,
@@ -111,7 +111,7 @@ parser.add_argument('--erasing_p', default=0.5, type=float,
 parser.add_argument('--color_jitter', default=True, action='store_true',
                     help='use color jitter in training')
 parser.add_argument("--label_smoothing", default=0.0, type=float)
-parser.add_argument("--samples_per_class", default=2, type=int,
+parser.add_argument("--samples_per_class", default=5, type=int,
                     help="Batch sampling strategy. Batches are sampled from groups of the same class with *this many* elements, if possible. Ordinary random sampling is achieved by setting this to 1.")
                     
 
@@ -337,8 +337,8 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
         # gamma = 64 may lead to a better result.
         criterion_circle = CircleLoss(m=0.25, gamma=32).to(device)
     if opt.triplet:
-        miner = miners.MultiSimilarityMiner()
-        #miner2 = miners.MultiSimilarityCrossCamMiner()
+        #miner = miners.MultiSimilarityMiner()
+        miner2 = miners.MultiSimilarityCrossCamMiner()
         criterion_triplet = losses.TripletMarginLoss(margin=0.3).to(device)
     if opt.lifted:
         criterion_lifted = losses.GeneralizedLiftedStructureLoss(
@@ -374,8 +374,8 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
         }
 
     else:
-        train_sampler = BatchSamplerCrossCam(
-            image_datasets["train"], opt.batchsize, samples_per_class=opt.samples_per_class, samples_per_camera=1)
+        train_sampler = BatchSampler(
+            image_datasets["train"], opt.batchsize, samples_per_class=opt.samples_per_class)
 
         dataloaders = {
             "val": torch.utils.data.DataLoader(image_datasets["val"],
@@ -444,10 +444,10 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
                         loss += criterion_circle(
                             *convert_label_to_similarity(ff, labels)) / now_batch_size
                     if opt.triplet:
-                        hard_pairs = miner(ff, labels)
-                        #hard_pairs2 = miner2(ff, labels, cam_ids=cam_ids)
+                        # hard_pairs = miner(ff, labels)
+                        hard_pairs2 = miner2(ff, labels, cam_ids=cam_ids)
                         # /now_batch_size
-                        loss += criterion_triplet(ff, labels, hard_pairs)
+                        loss += criterion_triplet(ff, labels, hard_pairs2)
                     if opt.lifted:
                         loss += criterion_lifted(ff, labels)  # /now_batch_size
                     if opt.contrast:

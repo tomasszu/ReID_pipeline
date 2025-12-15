@@ -5,6 +5,7 @@ import csv
 from opensearchpy.helpers import scan
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
+from sklearn.metrics import roc_auc_score
 
 from scipy.stats import entropy
 
@@ -441,6 +442,50 @@ class InterVehicleAnalyzer:
         kl_value = entropy(p_hist, q_hist) # KL divergence D_KL(P || Q)
 
         print(f"KL Divergence: {kl_value}")
+
+    def print_separation_metric(self, a_vals, b_vals):
+
+        a_arr = np.array(a_vals)
+        b_arr = np.array(b_vals)
+
+        mean_a = a_arr.mean()
+        mean_b = b_arr.mean()
+        std_a = a_arr.std()
+        std_b = b_arr.std()
+
+        separation = abs(mean_a - mean_b) / (std_a + std_b)
+
+        print(f"Separation Metric: {separation}")
+
+    def print_roc_auc_score(self, a_vals, b_vals):
+        
+        y_true = np.array([1] * len(a_vals) + [0] * len(b_vals))
+        y_scores = np.array(a_vals + b_vals)
+
+        auc_score = roc_auc_score(y_true, y_scores)
+
+        print(f"ROC AUC Score: {auc_score}")
+
+    def print_percentile_gap(self, a_vals, b_vals, p=25):
+        """
+        Prints the gap between the p-th percentile of b_vals and the (100-p)-th percentile of a_vals.
+
+        Args:
+            a_vals (list or np.ndarray): First set of values (100 - p-th percentile aka ending).
+            b_vals (list or np.ndarray): Second set of values (p-th percentile aka beginning).
+            p (float): Percentile to compute (default is 25).
+        """
+        a_arr = np.array(a_vals)
+        b_arr = np.array(b_vals)
+
+        p_a = np.percentile(a_arr, 100 - p)
+        p_b = np.percentile(b_arr, p)
+
+        gap = p_b - p_a
+
+        print(f"Percentile Gap (p={p}): {gap} (P{p} of b_vals: {p_b}, P{100 - p} of a_vals: {p_a})")
+
+        
 
     def sample_info(self, name, arr):
         # print sample info abt a distribution array values
