@@ -39,6 +39,7 @@ from circle_loss import CircleLoss, convert_label_to_similarity
 from instance_loss import InstanceLoss
 from load_model import load_model_from_opts
 from dataset import ImageDatasetWCam, BatchSampler
+from dataset_inspect import inspect_batches
 
 """"
 12.12.2025
@@ -75,7 +76,7 @@ parser.add_argument('--tpu_cores', default=-1, type=int,
 parser.add_argument('--num_workers', default=3, type=int)
 parser.add_argument('--warm_epoch', default=3, type=int, # te 3 parasti
                     help='the first K epoch that needs warm up (counted from start_epoch)')
-parser.add_argument('--total_epoch', default=46,
+parser.add_argument('--total_epoch', default=41,
                     type=int, help='total training epoch')
 parser.add_argument("--save_freq", default=1, type=int, #Originali bija 2
                     help="frequency of saving the model in epochs")
@@ -111,7 +112,7 @@ parser.add_argument('--erasing_p', default=0.5, type=float,
 parser.add_argument('--color_jitter', default=True, action='store_true',
                     help='use color jitter in training')
 parser.add_argument("--label_smoothing", default=0.0, type=float)
-parser.add_argument("--samples_per_class", default=5, type=int,
+parser.add_argument("--samples_per_class", default=4, type=int,
                     help="Batch sampling strategy. Batches are sampled from groups of the same class with *this many* elements, if possible. Ordinary random sampling is achieved by setting this to 1.")
                     
 
@@ -337,7 +338,7 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
         # gamma = 64 may lead to a better result.
         criterion_circle = CircleLoss(m=0.25, gamma=32).to(device)
     if opt.triplet:
-        #miner = miners.MultiSimilarityMiner()
+        miner = miners.MultiSimilarityMiner()
         miner2 = miners.MultiSimilarityCrossCamMiner()
         criterion_triplet = losses.TripletMarginLoss(margin=0.3).to(device)
     if opt.lifted:
@@ -376,6 +377,9 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
     else:
         train_sampler = BatchSampler(
             image_datasets["train"], opt.batchsize, samples_per_class=opt.samples_per_class)
+        
+        # custom function to inspect batches
+        #inspect_batches(image_datasets["train"], train_sampler, max_batches=100)
 
         dataloaders = {
             "val": torch.utils.data.DataLoader(image_datasets["val"],
@@ -444,10 +448,11 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
                         loss += criterion_circle(
                             *convert_label_to_similarity(ff, labels)) / now_batch_size
                     if opt.triplet:
-                        # hard_pairs = miner(ff, labels)
-                        hard_pairs2 = miner2(ff, labels, cam_ids=cam_ids)
-                        # /now_batch_size
-                        loss += criterion_triplet(ff, labels, hard_pairs2)
+                        hard_pairs = miner(ff, labels)
+                        loss += criterion_triplet(ff, labels, hard_pairs)
+                        # Or altirnatively only cross-camera positives:
+                        #hard_pairs2 = miner2(ff, labels, cam_ids=cam_ids)
+                        #loss += criterion_triplet(ff, labels, hard_pairs2)
                     if opt.lifted:
                         loss += criterion_lifted(ff, labels)  # /now_batch_size
                     if opt.contrast:

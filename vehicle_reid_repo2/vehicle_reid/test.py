@@ -32,9 +32,9 @@ torchvision_version = list(map(int, torchvision.__version__.split(".")[:2]))
 # --------
 
 parser = argparse.ArgumentParser(description='Test')
-parser.add_argument("--model_opts",default="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_finetune_editminer_121225/opts.yaml", 
+parser.add_argument("--model_opts",default="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/opts.yaml", 
                     type=str, help="model saved options")
-parser.add_argument("--checkpoint", default="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_finetune_editminer_121225/net_40.pth",
+parser.add_argument("--checkpoint", default="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/net_9.pth",
                     type=str, help="model checkpoint to load")
 parser.add_argument("--query_csv_path", default="/home/tomass/tomass/data/VeRi/VeRi_query.csv",
                     type=str, help="csv to contain query image data")

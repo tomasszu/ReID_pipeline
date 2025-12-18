@@ -9,10 +9,10 @@ sys.path.append('/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2')
 from vehicle_reid.load_model import load_model_from_opts
 
 class FeatureExtractor:
-    def __init__(self):
+    def __init__(self, model_opts_path="vehicle_reid_repo2/vehicle_reid/model/main_finetune_editminer_121225/opts.yaml" ,model_ckpt_path="vehicle_reid_repo2/vehicle_reid/model/main_finetune_editminer_121225/net_45.pth"):
         self.device = "cuda"
-        self.model = load_model_from_opts("vehicle_reid_repo2/vehicle_reid/model/main_finetune_editminer_121225/opts.yaml", 
-                                     ckpt="vehicle_reid_repo2/vehicle_reid/model/main_finetune_editminer_121225/net_45.pth", 
+        self.model = load_model_from_opts(model_opts_path, 
+                                     ckpt=model_ckpt_path, 
                                      remove_classifier=True)
         self.model.eval()
         self.model.to(self.device)

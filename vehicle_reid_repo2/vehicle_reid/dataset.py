@@ -56,20 +56,30 @@ class BatchSampler:
         
 
     def __iter__(self):
+        # Rindas kartibaa no gt faila list of ids
         ids = self.dataset.df[self.dataset.target_label]
-        #print(ids)
+        #sajauc šo listi, tie paši row+class_id bet dažādā secībā
         ids = ids.sample(frac=1.0)
+        # vārdnīca, kur key ir class id un value ir visas pozīcijas rindā (visi row idx no gt faila)
         samples_for_id = {}
         for idx, cls in ids.items():
             samples_for_id.setdefault(cls, []).append(idx)
 
         # create patches of size: samples_per_class
         patches = []
-        for _, samples in samples_for_id.items():
+        # ejam cauri visiem {class id:row_ids}
+        for _, samples in samples_for_id.items(): # samples ir visi row idx konkrētajam class id
+            # solis ir samples per class
+            # range(start = 0, stop = len(samples), step = self.samples_per_class):
             for i in range(0, len(samples), self.samples_per_class):
                 patches.append(samples[i:i + self.samples_per_class])
+                #patches (pie per class = 4):
+                #0	16884	16898.0	16893.0	16873.0
+                #1	16901	16878.0	16909.0	16871.0
 
+        # patches ir shuffled, bet viss vēljoprojām ir traceable jo vienā patch ir tikai viena klase + katrs sample ir traceable uz savu rindiņu iekš gt
         random.shuffle(patches)
+        
         self.batches, self.batch_idx = [[]], 0
         for patch in patches:
             last_batch = self.batches[-1]

@@ -483,7 +483,7 @@ class InterVehicleAnalyzer:
 
         gap = p_b - p_a
 
-        print(f"Percentile Gap (p={p}): {gap} (P{p} of b_vals: {p_b}, P{100 - p} of a_vals: {p_a})")
+        print(f"Percentile Gap (p={p}): {gap} (P{100 - p} of a_vals: {p_a}), P{p} of b_vals: {p_b}")
 
         
 

@@ -9,9 +9,9 @@ from FeatureExtract import FeatureExtractor
 from opensearchDatabaseOperations import Database
 
 class EmbeddingsFromGT:
-    def __init__(self, vdo_path, gt_path, cam_id, split):
+    def __init__(self, vdo_path, gt_path, cam_id, split, model_opts_path="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_ft_samples_pc_2_151225/opts.yaml" ,model_ckpt_path="vehicle_reid_repo2/vehicle_reid/model/main_finetune_editminer_121225/net_45.pth"):
 
-        self.extractor = FeatureExtractor()
+        self.extractor = FeatureExtractor(model_opts_path, model_ckpt_path)
 
         self.cam_id = cam_id
         self.split = split
@@ -119,7 +119,9 @@ def main():
         embedder = EmbeddingsFromGT(vdo_path = f"/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c00{i}/vdo.avi",
                                         gt_path = f"/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c00{i}/gt/gt.txt",
                                         cam_id = f"S01c00{i}",
-                                        split = "train")
+                                        split = "train",
+                                        model_opts_path="vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/opts.yaml",
+                                        model_ckpt_path="vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/net_4.pth")
         embedder.save_dict_to_db(db)
         # except:
         #     print("[Main] Embeddings not properly loaded.")
