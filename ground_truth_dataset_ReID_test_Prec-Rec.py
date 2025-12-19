@@ -123,21 +123,27 @@ def results(results_map):
         # print("Macro Precision: ", macro_precision)
         # print("Macro Recall: ", macro_recall)
 
-data_dir = '/home/tomass/tomass/magistrs/video_annotating'
+# data_dir = '/home/tomass/tomass/magistrs/video_annotating'
 
-ground_truths_path_1 = "/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_4/part1.csv"
+# ground_truths_path_1 = "/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_4/part1.csv"
 
-ground_truths_path_2 = "/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_4/part2.csv"
+# ground_truths_path_2 = "/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_4/part2.csv"
 
-# ground_truths_path_3 = "/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_3/part3.csv"
+# # ground_truths_path_3 = "/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_3/part3.csv"
 
-ground_truths_path_4 = "/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_4/part3.csv"
+# ground_truths_path_4 = "/home/tomass/tomass/magistrs/video_annotating/pidgeon_datasets/test_datasets/pidgeon_test_4/part3.csv"
 
+data_dir = '/home/tomass/tomass/data'
 
-file1 = pd.read_csv(ground_truths_path_1)
-file2 = pd.read_csv(ground_truths_path_2)
-# file3 = pd.read_csv(ground_truths_path_3)
-file4 = pd.read_csv(ground_truths_path_4)
+ground_truths_path_1 = "/home/tomass/tomass/data/EDI_Cam_testData/cam1.csv"
+
+ground_truths_path_2 = "/home/tomass/tomass/data/EDI_Cam_testData/cam2.csv"
+
+ground_truths_path_3 = "/home/tomass/tomass/data/EDI_Cam_testData/cam3.csv"
+
+file1 = pd.read_csv(ground_truths_path_3)
+file2 = pd.read_csv(ground_truths_path_1)
+file3 = pd.read_csv(ground_truths_path_2)
 
 seen_vehicle_ids = [20]
 
@@ -146,7 +152,7 @@ seen_vehicle_ids = [20]
 
 for index, row in file1.iterrows():
     image_path = row['path']  # Get the image path
-    vehicle_id = row['id']     # Get the vehicle ID
+    vehicle_id = row['ID']     # Get the vehicle ID
 
     image_path = os.path.join(data_dir, image_path)
     
@@ -157,7 +163,7 @@ for index, row in file1.iterrows():
 
 for index, row in file2.iterrows():
     image_path = row['path']  # Get the image path
-    vehicle_id = row['id']     # Get the vehicle ID
+    vehicle_id = row['ID']     # Get the vehicle ID
 
     image_path = os.path.join(data_dir, image_path)
 
@@ -180,9 +186,9 @@ for index, row in file2.iterrows():
 # _____________________________________________________________________________________#
 # Turn vehicles from camera x (query camera) into embeddings and search in DB:
 
-for index, row in file4.iterrows():
+for index, row in file3.iterrows():
     image_path = row['path']  # Get the image path
-    vehicle_id = row['id']     # Get the vehicle ID
+    vehicle_id = row['ID']     # Get the vehicle ID
 
     image_path = os.path.join(data_dir, image_path)
 

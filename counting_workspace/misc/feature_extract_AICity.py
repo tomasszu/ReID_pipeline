@@ -551,7 +551,7 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
         # print(model)
         #model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_22.pth", remove_classifier=True)
         global model
-        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/net_4.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/net_19.pth", remove_classifier=True)
 
         #print(model)
         model.eval()
@@ -619,7 +619,7 @@ def compare_extractions_to_lance_db(folder_path, queried_folder_name):
         # print(model)
         #model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_22.pth", remove_classifier=True)
         global model
-        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/net_4.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/net_8.pth", remove_classifier=True)
 
         #print(model)
         model.eval()
@@ -693,7 +693,7 @@ def compare_extractions_to_lance_db_For_Rank(folder_path, queried_folder_name):
 
     global model
     if not 'model' in globals():
-        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/net_4.pth", remove_classifier=True)
         model.eval()
         model.to(device)
 
@@ -711,13 +711,73 @@ def compare_extractions_to_lance_db_For_Rank(folder_path, queried_folder_name):
         print("-------------------------------")
         print(f"{image_id} found as ->  \n")
 
+        # Query top-n results
+        results = l_db.query_for_IDs(embedding, queried_folder_name, limit=5)
+        #results = [r for r in results if r['_distance'] <= 0.6]
+        
+        #0.8 similarity te ir randomaa kkada, bet baasically 0.8 ir bare minimum. Kkadiem modeliem vnk tie similarity scores ir atskirigi
+        if results and results != -1:
+            retrieved_ids = [int(result['vehicle_id']) if result['_distance'] <= 0.8 else None for result in results] # Filter by distance threshold
+            distances = [result['_distance'] if result['_distance'] <= 0.8 else None for result in results] # Filter by distance threshold
+
+            results_map.append([image_id, retrieved_ids, distances])
+            retrieved_ids = retrieved_ids[:5] # Take top-5
+            distances = distances[:5]
+            print(f"{retrieved_ids} [{distances}%]")
+
+    return results_map  # Now contains Top-5 results per query
+
+def compare_extractions_to_lance_db_For_Rank_min_sim(folder_path, queried_folder_name, seen_vehicle_ids):
+    import numpy as np
+    import re
+    import counting_workspace.misc.lance_db_init as create_db
+
+    import numpy as np
+    import lancedb
+
+    device = "cuda"
+
+    #Šis ir atkarigs no modela cross positive similarities kkads percentiles. Main modelim 75% bija ~0.51 distance (0.49 similarity)
+    distance_cutoff = 0.51
+
+    # start_time = time.time()
+
+    #model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_22.pth", remove_classifier=True)
+
+    global model
+    if not 'model' in globals():
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/net_0.pth", remove_classifier=True)
+        model.eval()
+        model.to(device)
+
+
+    extractable_images = os.listdir(folder_path)
+    ReIDimages = [Image.open(folder_path + x) for x in extractable_images]
+    ReIDX_images = torch.stack(tuple(map(data_transforms, ReIDimages))).to(device)
+
+    ReIDfeatures = torch.stack([extract_feature(model, X) for X in ReIDX_images]).detach().cpu().numpy()
+
+    print("From intersection 2. -> 1. :")
+    results_map = []
+    for image_name, embedding in zip(extractable_images, ReIDfeatures):
+        image_id = re.sub(r'[^0-9]', '', image_name)  # Extract numerical ID
+
+        print("-------------------------------")
+
+        if int(image_id) not in seen_vehicle_ids:
+            print(f"Unseen {image_id} found as ->  \n")
+            image_id = "0" # Adjust ID if not seen before
+        else:
+            print(f"{image_id} found as ->  \n")        
+        
+
         # Query top-n results that have cosinus similarity distance <= 0.50
         results = l_db.query_for_IDs(embedding, queried_folder_name, limit=100)
         #results = [r for r in results if r['_distance'] <= 0.6]
         
         if results and results != -1:
-            retrieved_ids = [int(result['vehicle_id']) if result['_distance'] <= 0.6 else None for result in results] # Filter by distance threshold
-            distances = [result['_distance'] if result['_distance'] <= 0.6 else None for result in results] # Filter by distance threshold
+            retrieved_ids = [int(result['vehicle_id']) if result['_distance'] <= distance_cutoff else None for result in results] # Filter by distance threshold
+            distances = [result['_distance'] if result['_distance'] <= distance_cutoff else None for result in results] # Filter by distance threshold
 
             results_map.append([image_id, retrieved_ids, distances])
             retrieved_ids = retrieved_ids[:5] # Take top-5
@@ -745,7 +805,7 @@ def save_image_to_lance_db(image_path, vehicle_id, folder_name, saving_mode):
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/result7/net_10.pth")
         # print(model)
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch+loss_change4/net_17.pth", remove_classifier=True)
-        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_3_split_ids/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_3_split_ids/net_12.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
         #print(model)
         model.eval()
@@ -795,7 +855,7 @@ def compare_image_to_lance_db(image_path, vehicle_id, queried_folder_name):
     global model
     if not 'model' in globals():
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_9.pth", remove_classifier=True)
-        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_2_no_CE/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/Pidgeon_model_2_no_CE/net_5.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/veri+vehixlex_editTrainPar1/net_39.pth", remove_classifier=True)
         # model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/benchmark_model/net_19.pth", remove_classifier=True)
         model.eval()
         model.to(device)

@@ -121,7 +121,7 @@ def main():
                                         cam_id = f"S01c00{i}",
                                         split = "train",
                                         model_opts_path="vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/opts.yaml",
-                                        model_ckpt_path="vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/net_4.pth")
+                                        model_ckpt_path="vehicle_reid_repo2/vehicle_reid/model/main_samples_pc_4_181225/net_8.pth")
         embedder.save_dict_to_db(db)
         # except:
         #     print("[Main] Embeddings not properly loaded.")

@@ -3,10 +3,13 @@
 import pandas as pd
 import numpy as np
 import os
+import shutil
+
+from sklearn.metrics import roc_auc_score
 
 import counting_workspace.misc.crop_AICity as detection_crop
 #Basic one model extraction, arch unchanged
-import counting_workspace.misc.feature_extract as fExtract
+import counting_workspace.misc.feature_extract_AICity as fExtract
 #With CLIP
 # import counting_workspace.misc.feature_extract_AICity_CLIP as fExtract
 #For ModelArchChange - removing all classification head
@@ -19,42 +22,43 @@ import counting_workspace.misc.feature_extract as fExtract
 #SAVING MODE OPTIONS: 3 - saving all vectors of vehicle in different zones only
 saving_mode = 3
 
-total_iters = 0
-accumulative_accuracy = 0
-accumulative_top1 = 0
+total_queries = 0
+rank1_correct = 0
+
+all_labels = []     # 1 = correct match, 0 = incorrect
+all_scores = []     # similarity scores (higher = better)
 
 
-def results(results_map):
-    frame_findings = len(results_map)
-    if(frame_findings):
-        frame_accuracy = 0
-        top1_acc = 0
-        for result in results_map:
-            id1, id2, distance = result
-            if(id1 != id2):
-                frame_accuracy += 0
-            else:
-                frame_accuracy += (1 - distance)
-                top1_acc += 1
-        if(frame_accuracy > 0):
-            frame_accuracy = frame_accuracy / frame_findings
-            top1_acc = top1_acc / frame_findings
-        print("Frame precision: ", frame_accuracy, "Out of: ", frame_findings, " frame findings" )
-        global total_iters
-        total_iters += 1
-        global accumulative_accuracy
-        global accumulative_top1
-        accumulative_accuracy += frame_accuracy
-        accumulative_top1 += top1_acc
-        if(accumulative_accuracy != 0 and total_iters != 0):
-            total_accuracy = accumulative_accuracy / total_iters
-            total_top1_acc = accumulative_top1 / total_iters
-        else:
-            total_accuracy = 0
-            total_top1_acc = 0
+def update_reid_metrics(results_map):
+    global total_queries, rank1_correct
+    global all_labels, all_scores
 
-        print("Accuracy: ", total_top1_acc, "Out of: ", total_iters, " frames" )
-        print("(Accuracy*Confidence: ", total_accuracy, "Out of: ", total_iters, " frames)" )
+    if not results_map:
+        return
+
+    for gt_id, nn_id, dist in results_map:
+        total_queries += 1
+
+        is_correct = int(gt_id == nn_id)
+        rank1_correct += is_correct
+
+        # Rank-1
+        rank1_acc = rank1_correct / total_queries
+
+        # For ROC/AUC: higher score = more likely same-ID
+        similarity = -dist
+
+        all_labels.append(is_correct)
+        all_scores.append(similarity)
+
+    # ROC/AUC only makes sense if both classes exist
+    if len(set(all_labels)) > 1:
+        auc = roc_auc_score(all_labels, all_scores)
+    else:
+        auc = float("nan")
+
+    print(f"Rank-1 Accuracy: {rank1_acc:.4f}")
+    print(f"ROC AUC:        {auc:.4f}")
 
 data_dir = '/home/tomass/tomass/data'
 
@@ -66,9 +70,9 @@ ground_truths_path_2 = "/home/tomass/tomass/data/EDI_Cam_testData/cam2.csv"
 ground_truths_path_3 = "/home/tomass/tomass/data/EDI_Cam_testData/cam3.csv"
 
 
-file1 = pd.read_csv(ground_truths_path_1)
+file1 = pd.read_csv(ground_truths_path_3)
 file2 = pd.read_csv(ground_truths_path_2)
-file3 = pd.read_csv(ground_truths_path_3)
+file3 = pd.read_csv(ground_truths_path_1)
 
 seen_vehicle_ids = [20]
 
@@ -108,9 +112,15 @@ for index, row in file3.iterrows():
 
     if vehicle_id in seen_vehicle_ids:
         results_map = fExtract.compare_image_to_lance_db(image_path, vehicle_id, 1)
-        results(results_map)
+        update_reid_metrics(results_map)
 
 # _______________________________________________________________________________________#
+
+# DELETING the lancedb folder automatically after use (at: /home/tomass/tomass/ReID_pipele/lancedb)
+
+shutil.rmtree("/home/tomass/tomass/ReID_pipele/lancedb")
+
+
 
     #print(seen_vehicle_ids)
 

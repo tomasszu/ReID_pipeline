@@ -70,18 +70,30 @@ def results_for_Ranking(results_map):
     frame_accuracy = 0
     top1_acc = 0
     top5_acc = 0
+    num_ap_queries = 0
     total_ap = 0  # Sum of APs for mAP
 
     for result in results_map:
-        id1, retrieved_results, distances = result  # `retrieved_results` is the full ranked list
-        retrieved_results = np.stack((retrieved_results,distances), axis=1)
+        id1, retrieved_ids, distances = result  # `retrieved_results` is the full ranked list
+        retrieved = list(zip(retrieved_ids, distances))
         #print(retrieved_results)
 
-        correct_indices = [i for i, res in enumerate(retrieved_results) if (res[0] is not None) and (int(res[0]) == int(id1))]
+        correct_indices = [
+            i for i, (rid, _) in enumerate(retrieved)
+            if rid is not None and int(rid) == int(id1)
+        ]
+
+        is_unseen_gt = int(id1) == 0
+        no_retrieval = all(rid is None for rid, _ in retrieved)
 
         # Rank-1 accuracy: check if the first result is correct
-        if correct_indices:
-            frame_accuracy += 1 - retrieved_results[correct_indices[0]][1]
+        if is_unseen_gt and no_retrieval:
+            frame_accuracy += 1
+            top1_acc += 1
+            top5_acc += 1
+            continue
+        elif correct_indices:
+            frame_accuracy += 1
             top1_acc += 1 if correct_indices[0] == 0 else 0
             top5_acc += 1 if min(correct_indices) < 5 else 0
 
@@ -92,15 +104,14 @@ def results_for_Ranking(results_map):
                 ap += precision_at_k
             ap /= len(correct_indices)  # Average Precision for this query
             total_ap += ap
-        else:
-            frame_accuracy += 0  # No correct match found
+            num_ap_queries += 1
 
 
     # Compute averages
     frame_accuracy /= frame_findings
     top1_acc /= frame_findings
     top5_acc /= frame_findings
-    mean_ap = total_ap / frame_findings if frame_findings > 0 else 0  # Mean Average Precision
+    mean_ap = total_ap / num_ap_queries if num_ap_queries > 0 else 0
 
     # Print results
     print(f"Frame accuracy: {frame_accuracy:.4f} Out of {frame_findings} frame findings")
@@ -365,7 +376,7 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
     # -------------------- INTERSECTION 2 -------------------------
     # reading frame from video
     _, frame2 = video2.read()
-    frame_id2, last_read2, curr_line2, labeled_frame2, croppable_detections2 = ground_truth_for_frame(frame_id2, last_read2, frame_nr, curr_line2, frame2, lines2, seen_vehicle_ids)
+    frame_id2, last_read2, curr_line2, labeled_frame2, croppable_detections2 = ground_truth_for_frame(frame_id2, last_read2, frame_nr, curr_line2, frame2, lines2)
 
     for detection in croppable_detections2: #croppable detections satur detections zonai, iteree cauri zonaam
         detection_crop.crop_from_bbox(frame2, detection[1], detection[2], 2) # (frame, vehID, bbox, intersectionNr)
@@ -375,7 +386,8 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
         #fExtract.save_extractions_to_vector_db(intersection_folder, intersection)
         #fExtractCLIP.save_extractions_to_lance_db(intersection_folder, intersection)
         #results_map = fExtract.compare_extractions_to_lance_db(intersection2_folder, 1)  # Without mAP, Rank1, Rank5
-        results_map = fExtract.compare_extractions_to_lance_db_For_Rank(intersection2_folder, 1)  # With mAP, Rank1, Rank5
+        #results_map = fExtract.compare_extractions_to_lance_db_For_Rank(intersection2_folder, 1)  # With mAP, Rank1, Rank5
+        results_map = fExtract.compare_extractions_to_lance_db_For_Rank_min_sim(intersection2_folder, 1, seen_vehicle_ids)  # With similarity score filtering, returning mAP, Rank1, Rank5
         results_for_Ranking(results_map)
 
     
