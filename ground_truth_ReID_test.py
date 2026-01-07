@@ -355,7 +355,6 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
         #fExtract.save_extractions_to_CSV(intersection_folder)
         #fExtract.save_extractions_to_vector_db(intersection_folder, intersection)
         fExtract.save_extractions_to_lance_db(intersection1_folder, 1, saving_mode)
-        #fExtract.save_extractions_to_lance_db(intersection1_folder, 1, saving_mode)
 
 
 

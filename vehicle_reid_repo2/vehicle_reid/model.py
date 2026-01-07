@@ -122,6 +122,20 @@ class ft_net(nn.Module):
         x = x.view(x.size(0), x.size(1))
         x = self.classifier(x)
         return x
+    
+# Define the classification head from the originally ResNet50-based Model
+class ft_net_head(nn.Module):
+
+    def __init__(self,input_num = 512, class_num=751, droprate=0.5, circle=False, linear_num=256):
+        super(ft_net, self).__init__()
+        
+        self.circle = circle
+        self.classifier = ClassBlock(
+            input_num, class_num, droprate, linear=linear_num, return_f=circle)
+        
+    def forward(self, x):
+        x = self.classifier(x)
+        return x
 
 
 # Define the swin_base_patch4_window7_224 Model

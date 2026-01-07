@@ -44,6 +44,47 @@ class ImageDataset(Dataset):
             label = self.target_transform(label)
         return image, label
     
+class ImageDatasetCLIP(Dataset):
+    """A labeled image dataset for the CLIP model whose annotation is provided as a DataFrame."""
+
+    def __init__(self, img_root, df, target_label, classes="infer", transform=None, target_transform=None, device="cuda"):
+        self.img_root = img_root
+        self.df = df
+        self.target_label = target_label
+        self.transform = transform
+        self.target_transform = target_transform
+        self.device = device
+        if classes == "infer":
+            self.classes = list(set(df[target_label].values))
+        else:
+            self.classes = classes
+            class_set = set(df[target_label].values)
+            assert class_set.issubset(
+                set(classes)), "Error: Classes in df are not a subset of provided classes."
+        self.class_idx = {cl: idx for idx, cl in enumerate(self.classes)}
+
+    def __len__(self):
+        return len(self.df)
+
+    def get_image(self, idx):
+        """Returns the image at a given index of the dataset."""
+        row = self.df.loc[idx]
+        pth = os.path.join(self.img_root, row["path"])
+        image = Image.open(pth).convert("RGB")
+        return image
+
+    def __getitem__(self, idx):
+        """Returns the transformed image and label at a given index."""
+        row = self.df.loc[idx]
+        pth = os.path.join(self.img_root, row["path"])
+        image = Image.open(pth)
+        label = self.class_idx[row[self.target_label]]
+        if self.transform:
+            image = self.transform(image).unsqueeze(0).to(self.device)
+        if self.target_transform:
+            label = self.target_transform(label)
+        return image, label
+    
 
 class BatchSampler:
     def __init__(self, dataset, batch_size, samples_per_class, drop_last=True):
@@ -157,6 +198,59 @@ class ImageDatasetWCam(Dataset):
 
         if self.transform:
             image = self.transform(image)
+        if self.target_transform:
+            label = self.target_transform(label)
+        
+        return image, label, cam_id
+    
+class ImageDatasetWCamCLIP(Dataset):
+    """A labeled image dataset whose annotation is provided as a DataFrame."""
+    #also returns cam_id along with image and label
+
+    def __init__(self, img_root, df, target_label, cam_label="cam", classes="infer", transform=None, target_transform=None, device="cuda"):
+        self.img_root = img_root
+        self.df = df
+        self.target_label = target_label
+        self.cam_label = cam_label
+        self.transform = transform
+        self.target_transform = target_transform
+        self.device = device
+        if classes == "infer":
+            self.classes = list(set(df[target_label].values))
+        else:
+            self.classes = classes
+            class_set = set(df[target_label].values)
+            assert class_set.issubset(
+                set(classes)), "Error: Classes in df are not a subset of provided classes."
+        self.class_idx = {cl: idx for idx, cl in enumerate(self.classes)}
+
+        #camera mapping
+
+        self.cameras = list(sorted(set(df[cam_label].values)))
+        self.cam_idx = {c: i for i, c in enumerate(self.cameras)}
+
+    def __len__(self):
+        return len(self.df)
+
+    def get_image(self, idx):
+        """Returns the image at a given index of the dataset."""
+        row = self.df.loc[idx]
+        pth = os.path.join(self.img_root, row["path"])
+        image = Image.open(pth).convert("RGB")
+        return image
+
+    def __getitem__(self, idx):
+        """Returns the transformed image and id label and cam label at a given index."""
+        row = self.df.loc[idx]
+        pth = os.path.join(self.img_root, row["path"])
+        image = Image.open(pth)
+
+        #convert labels to integers
+        label = self.class_idx[row[self.target_label]]
+        cam_id = self.cam_idx[row[self.cam_label]]
+
+        if self.transform:
+            image = self.transform(image).unsqueeze(0).to(self.device)
         if self.target_transform:
             label = self.target_transform(label)
         
