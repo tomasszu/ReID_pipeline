@@ -275,7 +275,7 @@ def fliplr(img):
     return img_flip
 
 
-def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
+def train_model(head, criterion, start_epoch=0, num_epochs=25, num_workers=2):
     since = time.time()
 
     if use_gpu:
@@ -283,7 +283,7 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
     else:
         device = torch.device("cpu")
 
-    model = model.to(device)
+    head = head.to(device)
 
     if fp16:
         scaler = amp.GradScaler()
@@ -291,10 +291,10 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
 
     # create optimizer and scheduler
     optim_name = optim.SGD
-    ignored_params = list(map(id, model.classifier.parameters()))
+    ignored_params = list(map(id, head.classifier.parameters()))
     base_params = filter(lambda p: id(
-        p) not in ignored_params, model.parameters())
-    classifier_params = model.classifier.parameters()
+        p) not in ignored_params, head.parameters())
+    classifier_params = head.classifier.parameters()
     optimizer = optim_name([
         {'params': base_params, 'initial_lr': 0.1 * opt.lr,
          'lr': 0.1 * opt.lr},
@@ -378,7 +378,7 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
         
         loader = tqdm.tqdm(dataloaders['train'])
 
-        model.train(True)
+        head.train(True)
 
         running_loss = torch.zeros(1).to(device)
         running_corrects = torch.zeros(1).to(device)
@@ -397,7 +397,7 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
 
             ####>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TE MĒŠ PALIKĀM!!!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-            now_batch_size = inputs.shape[0]
+            now_batch_size = image_features.shape[0]
 
 
             # zero the parameter gradients
@@ -407,7 +407,7 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
 
             if fp16:
                 autocast.__enter__()
-            outputs = model(inputs)
+            outputs = head(image_features)
 
             if return_feature:
                 logits, ff = outputs
@@ -457,15 +457,14 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
 
             # perform gradient clipping to prevent divergence
             old_norm = torch.nn.utils.clip_grad_norm_(
-                model.parameters(), opt.grad_clip_max_norm)
+                head.parameters(), opt.grad_clip_max_norm)
 
             if opt.debug:
                 grad_debug.step(old_norm.item())
 
             #optimizer step
-            if use_tpu:
-                xm.optimizer_step(optimizer, barrier=True)
-            elif fp16:
+
+            if fp16:
                 scaler.step(optimizer)
                 scaler.update()
             else:
@@ -517,13 +516,10 @@ def train_model(model, criterion, start_epoch=0, num_epochs=25, num_workers=2):
             file.write('{},{},{:.4f},{:.4f}\n'.format(
             epoch, 'val', metrics['rank1'], metrics['mAP']))
 
-        if not use_tpu or opt.tpu_cores == 1 or xm.is_master_ordinal():
-            if epoch == num_epochs - 1 or (epoch % (opt.save_freq) == (opt.save_freq - 1)):
-                save_network(model, epoch)
-    #        draw_curve(epoch)
 
-        if use_tpu and opt.tpu_cores > 1:
-            xm.rendezvous('wait all threads here, not sure if needed')
+        if epoch == num_epochs - 1 or (epoch % (opt.save_freq) == (opt.save_freq - 1)):
+            save_network(model, epoch)
+    #       draw_curve(epoch)
 
         time_elapsed = time.time() - since
         print('Epoch complete at {:.0f}m {:.0f}s'.format(
