@@ -250,7 +250,8 @@ class ImageDatasetWCamCLIP(Dataset):
         cam_id = self.cam_idx[row[self.cam_label]]
 
         if self.transform:
-            image = self.transform(image).unsqueeze(0).to(self.device)
+            image = self.transform(image)
+            #image = self.transform(image).unsqueeze(0) <- originali piemeraa bija ar unsqueeze
         if self.target_transform:
             label = self.target_transform(label)
         

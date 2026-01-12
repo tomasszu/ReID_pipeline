@@ -22,7 +22,6 @@ sys.path.append(PROJECT_DIR)  # Add parent directory
 #from vehicle_reid.load_model_ModelArchChange import load_model_from_opts
 # from vehicle_reid.load_model_ModelArchChange_ForInfer_partial import load_model_from_opts
 from vehicle_reid_repo2.vehicle_reid.load_model import load_model_from_opts
-import matplotlib.pyplot as plt
 
 import counting_workspace.misc.lance_db_CLIP_AICity as l_db
 
@@ -551,7 +550,7 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
         # print(model)
         #model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_22.pth", remove_classifier=True)
         global model
-        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_sp4_ep6_ft_noCEL_070126/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_sp4_ep6_ft_noCEL_070126/net_39.pth", remove_classifier=True)
+        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CLIP_head_train/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CLIP_head_train/net_19.pth", remove_classifier=True)
 
         #print(model)
         model.eval()

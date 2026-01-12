@@ -9,11 +9,28 @@ from sklearn.metrics import roc_auc_score
 
 import counting_workspace.misc.crop_AICity as detection_crop
 #Basic one model extraction, arch unchanged
-import counting_workspace.misc.feature_extract_AICity as fExtract
+# import counting_workspace.misc.feature_extract_AICity as fExtract
 #With CLIP
-# import counting_workspace.misc.feature_extract_AICity_CLIP as fExtract
+import counting_workspace.misc.feature_extract_CLIP as fExtract
+import clip
 #For ModelArchChange - removing all classification head
 # import counting_workspace.misc.feature_extract_AICity_ModelArchChange_ForInfer as fExtract
+
+######################################################################
+# Configure devices
+# ---------
+#
+
+device = "cuda"
+
+######################################################################
+# Load Data
+# ---------
+
+clip_model_name = "ViT-B/32"
+
+clip_model, preprocess = clip.load(clip_model_name, device=device)
+clip_model = clip_model.float()
 
 
 #SAVING MODE OPTIONS: 0 - complete summing of all vectors of one vehicle in one
@@ -88,7 +105,7 @@ for index, row in file1.iterrows():
     if vehicle_id not in seen_vehicle_ids:
         seen_vehicle_ids.append(vehicle_id)
     
-    fExtract.save_image_to_lance_db(image_path, vehicle_id, 1, saving_mode)
+    fExtract.save_image_to_lance_db(image_path, vehicle_id, 1, saving_mode, clip_visual=clip_model.visual)
 
 for index, row in file2.iterrows():
     image_path = row['path']  # Get the image path
@@ -99,7 +116,7 @@ for index, row in file2.iterrows():
     if vehicle_id not in seen_vehicle_ids:
         seen_vehicle_ids.append(vehicle_id)
     
-    fExtract.save_image_to_lance_db(image_path, vehicle_id, 1, saving_mode)
+    fExtract.save_image_to_lance_db(image_path, vehicle_id, 1, saving_mode, clip_visual=clip_model.visual)
 
 # _____________________________________________________________________________________#
 # Turn vehicles from camera x (query camera) into embeddings and search in DB:
@@ -111,7 +128,7 @@ for index, row in file3.iterrows():
     image_path = os.path.join(data_dir, image_path)
 
     if vehicle_id in seen_vehicle_ids:
-        results_map = fExtract.compare_image_to_lance_db(image_path, vehicle_id, 1)
+        results_map = fExtract.compare_image_to_lance_db(image_path, vehicle_id, 1, clip_visual=clip_model.visual)
         update_reid_metrics(results_map)
 
 # _______________________________________________________________________________________#

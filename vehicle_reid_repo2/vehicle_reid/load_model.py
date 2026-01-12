@@ -7,7 +7,7 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(SCRIPT_DIR)
 
-from model import ft_net, ft_net_dense, ft_net_hr, ft_net_swin, ft_net_efficient, ft_net_NAS, PCB, MLP, ft_net_head
+from model import ft_net, ft_net_dense, ft_net_hr, ft_net_swin, ft_net_efficient, ft_net_NAS, PCB, MLP, clip_reid_net
 
 sys.path.remove(SCRIPT_DIR)
 
@@ -54,12 +54,12 @@ def create_model(n_classes, kind="resnet", **kwargs):
     else:
         raise ValueError("Model type cannot be created: {}".format(kind))
     
-def create_model_custom(n_classes, kind="linear", input_dim=512, **kwargs):
+def create_model_custom(clip_visual, n_classes, kind="ViT-B/32", input_dim=512, **kwargs):
     """Creates a model of a given kind and number of classes"""
     if kind == "linear":
         return MLP(n_classes, input_dim=input_dim)
-    elif kind == "CLIP_head":
-        return ft_net_head(input_num=input_dim ,class_num=n_classes, **kwargs)
+    elif kind == "ViT-B/32":
+        return clip_reid_net(clip_visual, class_num=n_classes, **kwargs)
     else:
         raise ValueError("Model type cannot be created: {}".format(kind))
 
@@ -158,7 +158,7 @@ def load_model_from_opts(opts_file, ckpt=None, return_feature=False, remove_clas
         model.eval()
     return model
 
-def load_CLIP_head_from_opts(opts_file, ckpt=None, return_feature=False, remove_classifier=False):
+def load_CLIP_head_from_opts(opts_file, clip_visual, ckpt=None, return_feature=False, remove_classifier=False):
     """Loads a saved model by reading its opts.yaml file.
 
     Parameters
@@ -186,12 +186,10 @@ def load_CLIP_head_from_opts(opts_file, ckpt=None, return_feature=False, remove_
     droprate = opts["droprate"]
     stride = opts["stride"]
     linear_num = opts["linear_num"]
-    
-    model_subtype = opts.get("model_subtype", "default")
-    model_type = opts.get("model", "resnet_ibn")
-    mixstyle = opts.get("mixstyle", False)
 
-    model = create_model_custom(n_classes, "CLIP_head", 512, linear_num=linear_num)
+    mixstyle = opts.get("mixstyle", False)
+    
+    model = create_model_custom(clip_visual=clip_visual, n_classes=n_classes, input_dim=512, droprate=droprate, circle=return_feature, linear_num=linear_num)
 
     # TE TEORETISKI VARETU NONEMT KKADUS PEDEJOS LAYERS
     if ckpt:

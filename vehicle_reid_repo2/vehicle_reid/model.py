@@ -136,6 +136,56 @@ class ft_net_head(nn.Module):
     def forward(self, x):
         x = self.classifier(x)
         return x
+    
+class clip_reid_net(nn.Module):
+    def __init__(
+        self,
+        clip_visual,
+        class_num=751,
+        droprate=0.5,
+        linear_num=512,
+        circle=False,
+        fine_tune_blocks=(10, 11),  # last transformer blocks
+    ):
+        super().__init__()
+
+        self.visual = clip_visual
+
+        # --- freeze everything first ---
+        for p in self.visual.parameters():
+            p.requires_grad = False
+
+        # --- unfreeze selected blocks ---
+        if hasattr(self.visual, "transformer"):
+            for idx in fine_tune_blocks:
+                for p in self.visual.transformer.resblocks[idx].parameters():
+                    p.requires_grad = True
+
+        out_dim = self.visual.output_dim   # usually 512
+        embed_dim = out_dim   # usually 512
+
+        # --- neck (VERY important) ---
+        self.neck = nn.Sequential(
+            nn.Linear(embed_dim, out_dim),
+            nn.BatchNorm1d(out_dim),
+        )
+
+        self.classifier = ClassBlock(
+            embed_dim,
+            class_num,
+            droprate,
+            linear=linear_num,
+            return_f=circle,
+        )
+
+        self.circle = circle
+
+    def forward(self, x):
+        # CLIP visual forward
+        feat = self.visual(x)           # (B, D)
+        feat = self.neck(feat)           # distribution alignment
+        out = self.classifier(feat)
+        return out
 
 
 # Define the swin_base_patch4_window7_224 Model
