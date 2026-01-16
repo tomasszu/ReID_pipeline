@@ -2,6 +2,31 @@ import numpy as np
 import torch
 import tqdm
 
+import torchvision
+from torchvision import transforms
+
+######################################################################
+# Load Data
+# ---------
+#
+
+torchvision_version = list(map(int, torchvision.__version__.split(".")[:2]))
+
+
+h, w = 224, 224
+interpolation = 3 if torchvision_version[0] == 0 and torchvision_version[1] < 13 else \
+    transforms.InterpolationMode.BICUBIC
+
+transform_val_list = [
+    transforms.Resize(size=(h, w), interpolation=interpolation),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+]
+
+data_transforms = {
+    'val': transforms.Compose(transform_val_list),
+}
+
 def open_world_proxy_crosscam(
     feats,
     ids,
@@ -87,6 +112,98 @@ def open_world_proxy_crosscam(
     }
 
 @torch.no_grad()
+def open_world_proxy_crosscam_gpu(
+    feats,  # torch.Tensor [N, D], normalized, CUDA
+    ids,    # torch.Tensor [N], CPU or CUDA
+    cams,   # torch.Tensor [N], CPU or CUDA
+    num_bg=None,
+    seed=0,
+):
+    
+    """
+    Open-world ReID proxy using all images as queries, all cross-camera positives.
+    
+    Args:
+        feats: np.array of shape [N, D], normalized feature vectors
+        ids: np.array of shape [N], integer IDs
+        cams: np.array of shape [N], camera indices
+        num_bg: int or None, number of negatives to sample per query
+        seed: random seed
+    
+    Returns:
+        dict with:
+            open_world_acc: fraction of positive>max_negative
+            mean_margin: mean(sim_pos - max_neg)
+            p10_margin: 10th percentile margin
+            num_valid_queries: total number of valid query-positive pairs
+
+
+    AKA picks a random query and a positive from a different camera, then
+    samples num_bg negatives for this particular embedding from different IDs. Computes whether this one random pair positive
+    similarity is larger than the maximum negative similarity, and the margin
+    between them.
+    """
+    
+    start_time = time.time()
+ 
+
+    device = feats.device
+    torch.manual_seed(seed)
+
+    N, D = feats.shape
+    correct = 0
+    margins = []
+
+    ids = ids.to(device)
+    cams = cams.to(device)
+
+    all_idx = torch.randperm(N, device=device)
+
+    for q in all_idx:
+        q_id = ids[q]
+        q_cam = cams[q]
+        qf = feats[q]                      # [D]
+
+        # cross-camera positives
+        pos_mask = (ids == q_id) & (cams != q_cam)
+        pos_idx = torch.where(pos_mask)[0]
+        if pos_idx.numel() == 0:
+            continue
+
+        # negatives
+        neg_idx_all = torch.where(ids != q_id)[0]
+        if num_bg is not None and neg_idx_all.numel() > num_bg:
+            perm = torch.randperm(neg_idx_all.numel(), device=device)[:num_bg]
+            neg_idx = neg_idx_all[perm]
+        else:
+            neg_idx = neg_idx_all
+
+        bgf = feats[neg_idx]               # [num_bg, D]
+        sim_neg_max = torch.max(bgf @ qf)  # scalar
+
+        # all positives for this query
+        pf = feats[pos_idx]                # [P, D]
+        sim_pos = pf @ qf                  # [P]
+        margin = sim_pos - sim_neg_max     # [P]
+
+        margins.append(margin)
+        correct += torch.sum(margin > 0).item()
+
+    margins = torch.cat(margins)
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+
+    print(f"Elapsed Time: {elapsed_time} seconds")
+
+    return {
+        "open_world_acc": correct / margins.numel(),
+        "mean_margin": margins.mean().item(),
+        "p10_margin": torch.quantile(margins, 0.10).item(),
+        "num_valid_queries": margins.numel(),
+    }
+
+@torch.no_grad()
 def evaluate_reid(model, dataloader, device):
     model.eval()
 
@@ -113,16 +230,15 @@ def evaluate_reid(model, dataloader, device):
         assert isinstance(feats, torch.Tensor), type(feats)
         feats = torch.nn.functional.normalize(feats, dim=1)
 
-        all_feats.append(feats.cpu())
-        all_ids.append(labels.cpu())
-        all_cams.append(cams.cpu())
+        all_feats.append(feats)
+        all_ids.append(labels)
+        all_cams.append(cams)
 
-    feats = torch.cat(all_feats, dim=0).numpy()
-    ids = torch.cat(all_ids, dim=0).numpy()
-    cams = torch.cat(all_cams, dim=0).numpy()
+    feats = torch.cat(all_feats, dim=0).to(device)   # KEEP ON GPU
+    ids = torch.cat(all_ids, dim=0)
+    cams = torch.cat(all_cams, dim=0)
 
-    # ---- ReID metrics ----
-    results = open_world_proxy_crosscam(feats, ids, cams)
+    results = open_world_proxy_crosscam_gpu(feats, ids, cams)
 
     return results
 
@@ -135,13 +251,19 @@ if __name__ == "__main__":
 
     import time
 
+    CLIP = True
+
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
     sys.path.append(SCRIPT_DIR)
 
-    import clip
-    import counting_workspace.misc.feature_extract_CLIP as fExtract
-    from vehicle_reid_repo2.vehicle_reid.load_model import load_CLIP_head_from_opts
-    from vehicle_reid_repo2.vehicle_reid.dataset import ImageDatasetWCamCLIP
+    if CLIP:
+        import clip
+        import counting_workspace.misc.feature_extract_CLIP as fExtract
+        from vehicle_reid_repo2.vehicle_reid.load_model import load_CLIP_head_from_opts
+        from vehicle_reid_repo2.vehicle_reid.dataset import ImageDatasetWCamCLIP
+    else:
+        from vehicle_reid_repo2.vehicle_reid.load_model import load_model_from_opts
+        from vehicle_reid_repo2.vehicle_reid.dataset import ImageDatasetWCam
 
 
     data_dir = "/home/tomass/tomass/data/VeRi"
@@ -150,17 +272,40 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     use_gpu = torch.cuda.is_available()
 
-    clip_model_name = "ViT-B/32"
-
-    clip_model, preprocess = clip.load(clip_model_name, device=device)
-    clip_model = clip_model.float()
-
     image_datasets = {}
     val_df = pd.read_csv(csv_path)
     all_ids = list(set(val_df["id"]))
 
-    image_datasets["val"] = ImageDatasetWCamCLIP(
-        data_dir, val_df, "id", classes=all_ids, transform=preprocess, device=device)
+    if CLIP:
+
+        clip_model_name = "ViT-B/32"
+
+        clip_model, preprocess = clip.load(clip_model_name, device=device)
+        clip_model = clip_model.float()
+
+        model = load_CLIP_head_from_opts(
+            "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CLIP_64b_4pc/opts.yaml",
+            clip_visual=clip_model.visual,
+            ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CLIP_64b_4pc/net_19.pth",
+            remove_classifier=True,
+        )
+        model.eval()
+        model.to(device)
+
+        image_datasets["val"] = ImageDatasetWCamCLIP(
+            data_dir, val_df, "id", classes=all_ids, transform=preprocess, device=device)
+        
+    else:
+        model = load_model_from_opts(
+            "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_sp4_ep6_ft_noCEL_070126/opts.yaml",
+            ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_sp4_ep6_ft_noCEL_070126/net_39.pth",
+            remove_classifier=True,
+        )
+        model.eval()
+        model.to(device)
+
+        image_datasets["val"] = ImageDatasetWCam(
+            data_dir, val_df, "id", classes=all_ids, transform=data_transforms["val"])
 
     dataloaders = {
         "val": torch.utils.data.DataLoader(image_datasets["val"],
@@ -168,17 +313,8 @@ if __name__ == "__main__":
                                             num_workers=3,
                                             pin_memory=use_gpu),
         
-        "train": None
+        "train": None,
     }
-    
-    model = load_CLIP_head_from_opts(
-        "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CLIP_head_train/opts.yaml",
-        clip_visual=clip_model.visual,
-        ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CLIP_head_train/net_10.pth",
-        remove_classifier=True,
-    )
-    model.eval()
-    model.to(device)
 
     results = evaluate_reid(model, dataloaders["val"], device)
 
