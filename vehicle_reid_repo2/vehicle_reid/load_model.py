@@ -12,7 +12,7 @@ from model import ft_net, ft_net_dense, ft_net_hr, ft_net_swin, ft_net_efficient
 sys.path.remove(SCRIPT_DIR)
 
 
-def load_weights(model, ckpt_path):
+def load_weights(model, ckpt_path, remove_classifier=False):
     """Loads weights of the model from a checkpoint file
 
     Paremeters
@@ -28,9 +28,11 @@ def load_weights(model, ckpt_path):
         The model object with the loaded weights.
     """
     state = torch.load(ckpt_path, map_location="cpu")
-    if model.classifier.classifier[0].weight.shape != state["classifier.classifier.0.weight"].shape:
-        state["classifier.classifier.0.weight"] = model.classifier.classifier[0].weight
-        state["classifier.classifier.0.bias"] = model.classifier.classifier[0].bias
+    if not remove_classifier:
+        if model.classifier.classifier[0].weight.shape != state["classifier.classifier.0.weight"].shape:
+            state["classifier.classifier.0.weight"] = model.classifier.classifier[0].weight
+            state["classifier.classifier.0.bias"] = model.classifier.classifier[0].bias
+    
     model.load_state_dict(state)
     return model
 
@@ -156,6 +158,7 @@ def load_model_from_opts(opts_file, ckpt=None, return_feature=False, remove_clas
     if remove_classifier:
         model.classifier.classifier = nn.Sequential()
         model.eval()
+
     return model
 
 def load_CLIP_head_from_opts(opts_file, clip_visual, ckpt=None, return_feature=False, remove_classifier=False):

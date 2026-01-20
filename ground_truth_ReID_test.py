@@ -11,10 +11,10 @@ import shutil
 
 import counting_workspace.misc.crop_AICity as detection_crop
 #No CLIP
-# import counting_workspace.misc.feature_extract_AICity as fExtract
+import counting_workspace.misc.feature_extract_AICity as fExtract
 #With CLIP
-import counting_workspace.misc.feature_extract_CLIP as fExtract
-import clip
+# import counting_workspace.misc.feature_extract_CLIP as fExtract
+# import clip
 #For ModelArchChange - removing all classification head
 # import counting_workspace.misc.feature_extract_AICity_ModelArchChange_ForInfer as fExtract
 
@@ -29,10 +29,10 @@ device = "cuda"
 # Load Data
 # ---------
 
-clip_model_name = "ViT-B/32"
+# clip_model_name = "ViT-B/32"
 
-clip_model, preprocess = clip.load(clip_model_name, device=device)
-clip_model = clip_model.float()
+# clip_model, preprocess = clip.load(clip_model_name, device=device)
+# clip_model = clip_model.float()
 
 
 #SAVING MODE OPTIONS: 0 - complete summing of all vectors of one vehicle in one
@@ -371,9 +371,9 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
     if(os.path.exists(intersection1_folder) and (not len(os.listdir(intersection1_folder)) == 0)):
         #fExtract.save_extractions_to_vector_db(intersection_folder, intersection)
         #No CLIP
-        #fExtract.save_extractions_to_lance_db(intersection1_folder, 1, saving_mode)
+        fExtract.save_extractions_to_lance_db(intersection1_folder, 1, saving_mode)
         #For CLIP finetuned model
-        fExtract.save_extractions_to_lance_db(intersection1_folder, 1, saving_mode, clip_visual=clip_model.visual)  # With CLIP
+        #fExtract.save_extractions_to_lance_db(intersection1_folder, 1, saving_mode, clip_visual=clip_model.visual)  # With CLIP
 
 
 
@@ -393,9 +393,9 @@ for frame_nr in range(int(video1.get(cv2.CAP_PROP_FRAME_COUNT))):
         #fExtractCLIP.save_extractions_to_lance_db(intersection_folder, intersection)
         #results_map = fExtract.compare_extractions_to_lance_db(intersection2_folder, 1)  # Without mAP, Rank1, Rank5
         # No CLIP
-        # results_map = fExtract.compare_extractions_to_lance_db_For_Rank(intersection2_folder, 1)  # With mAP, Rank1, Rank5
+        results_map = fExtract.compare_extractions_to_lance_db_For_Rank(intersection2_folder, 1)  # With mAP, Rank1, Rank5
         #For CLIP finetuned model
-        results_map = fExtract.compare_extractions_to_lance_db_For_Rank(intersection2_folder, 1, clip_visual=clip_model.visual)  # With mAP, Rank1, Rank5
+        #results_map = fExtract.compare_extractions_to_lance_db_For_Rank(intersection2_folder, 1, clip_visual=clip_model.visual)  # With mAP, Rank1, Rank5
         results_for_Ranking(results_map)
 
     

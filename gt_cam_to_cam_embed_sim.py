@@ -103,7 +103,7 @@ def load_embeddings(df, model):
         image = image.unsqueeze(0).to(device)
 
         with torch.no_grad():
-            emb = model(image) # [1, D]
+            _, emb = model(image) # [1, D]
 
         emb = emb.squeeze(0)  # [D]
 
@@ -316,6 +316,8 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     use_gpu = torch.cuda.is_available()
 
+    no_class_block = True
+
     if CLIP:
 
         clip_model_name = "ViT-B/32"
@@ -334,10 +336,10 @@ if __name__ == "__main__":
         
     else:
         model = load_model_from_opts(
-            "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/sp4_ep6_contrastive/opts.yaml",
-            ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/sp4_ep6_contrastive/net_16.pth",
+            "vehicle_reid_repo2/vehicle_reid/model/ctr_and_trp_loss/opts.yaml",
+            ckpt="vehicle_reid_repo2/vehicle_reid/model/ctr_and_trp_loss/net_27.pth",
             remove_classifier=True,
-        )
+            return_feature=True)
         model.eval()
         model.to(device)
 

@@ -550,7 +550,9 @@ def save_extractions_to_lance_db(folder_path, folder_name, saving_mode):
         # print(model)
         #model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/model_arch_change4/net_22.pth", remove_classifier=True)
         global model
-        model = load_model_from_opts("/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CLIP_head_train/opts.yaml", ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CLIP_head_train/net_19.pth", remove_classifier=True)
+        model = load_model_from_opts(
+                "vehicle_reid_repo2/vehicle_reid/model/ctr_and_trp_loss/opts.yaml",
+                ckpt="vehicle_reid_repo2/vehicle_reid/model/ctr_and_trp_loss/net_27.pth", remove_classifier=True)
 
         #print(model)
         model.eval()
