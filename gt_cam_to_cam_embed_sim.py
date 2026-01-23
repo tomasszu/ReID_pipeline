@@ -295,7 +295,7 @@ def evaluate_rank1_map(embeddings_buckets):
 if __name__ == "__main__":
     
     main_dir = "/home/tomass/tomass/Cam_record"
-    date_folders = ["04.09.25_2","04.09.25_3"]
+    date_folders = ["04.09.25_2","04.09.25_3","12.01.26","13.01.26","14.01.26"]
     camera_folders = ["perspective_views_fisheye_record"]
     perspective_folders = ["center", "left", "right"]
 
@@ -336,8 +336,8 @@ if __name__ == "__main__":
         
     else:
         model = load_model_from_opts(
-            "vehicle_reid_repo2/vehicle_reid/model/ctr_and_trp_loss/opts.yaml",
-            ckpt="vehicle_reid_repo2/vehicle_reid/model/ctr_and_trp_loss/net_27.pth",
+            "vehicle_reid_repo2/vehicle_reid/model/main_sp4_ep6_ft_noCEL_070126/opts.yaml",
+            ckpt="vehicle_reid_repo2/vehicle_reid/model/main_sp4_ep6_ft_noCEL_070126/net_26.pth",
             remove_classifier=True,
             return_feature=True)
         model.eval()

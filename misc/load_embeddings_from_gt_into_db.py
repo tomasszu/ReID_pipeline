@@ -120,8 +120,8 @@ def main():
                                         gt_path = f"/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c00{i}/gt/gt.txt",
                                         cam_id = f"S01c00{i}",
                                         split = "train",
-                                        model_opts_path="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/ep26ft_ctr_trip_loss/opts.yaml",
-                                        model_ckpt_path="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/ep26ft_ctr_trip_loss/net_36.pth")
+                                        model_opts_path="vehicle_reid_repo2/vehicle_reid/model/batchfix/opts.yaml",
+                                        model_ckpt_path="vehicle_reid_repo2/vehicle_reid/model/batchfix/net_15.pth")
         embedder.save_dict_to_db(db)
         # except:
         #     print("[Main] Embeddings not properly loaded.")
