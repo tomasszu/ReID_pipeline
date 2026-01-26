@@ -1,6 +1,8 @@
+from torch.utils.data import Sampler
 from torch.utils.data import Dataset
 from PIL import Image
 import random
+from collections import defaultdict
 import os
 
 
@@ -260,5 +262,179 @@ class ImageDatasetWCamCLIP(Dataset):
 
 #<<<<<<<<<<<<<<<<<<<<<<< #### ALTERNATIVE BATCHING CLASS IMPLEMENTATION ensuring the batch doesent contain any same-camera positives #### >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class BatchSamplerCrossCam:
-    pass
+class CrossCamBatchSampler(Sampler):
+    def __init__(
+        self,
+        dataset,
+        batch_size,
+        samples_per_class,
+        min_cams_per_class=2,
+        drop_last=True,
+    ):
+        
+        assert samples_per_class >= 2, "samples_per_class must be >= 2 for cross-cam"
+        assert samples_per_class >= min_cams_per_class # there cannot be more cams per class than samples
+        assert batch_size % samples_per_class == 0, \
+            "batch_size must be divisible by samples_per_class"
+        
+        """Samples a dataset into batches, with the given number of samples per class if possible."""
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.samples_per_class = samples_per_class
+        self.min_cams_per_class = min_cams_per_class
+        self.drop_last = drop_last
+
+        self.df = dataset.df
+        self.target_label = dataset.target_label
+        self.cam_label = dataset.cam_label
+
+        self.ids_per_batch = batch_size // samples_per_class
+
+        # build ID → cam → indices
+        self.id_cam_dict = defaultdict(lambda: defaultdict(list))
+        for idx, row in self.df.iterrows():
+            v_id = row[self.target_label]
+            cam = row[self.cam_label]
+            self.id_cam_dict[v_id][cam].append(idx)
+
+        # keep only IDs with enough cameras
+        self.valid_ids = [
+            v_id for v_id, cams in self.id_cam_dict.items()
+            if len(cams) >= self.min_cams_per_class
+        ]
+        
+
+    def __iter__(self):
+
+        random.shuffle(self.valid_ids)
+
+        batch = []
+
+        for v_id in self.valid_ids:
+            cams = list(self.id_cam_dict[v_id].keys())
+            random.shuffle(cams)
+
+            # pick cameras
+            selected_cams = cams[: self.min_cams_per_class]
+
+            samples = []
+
+            # ensure cross-cam
+            for cam in selected_cams:
+                samples.append(random.choice(self.id_cam_dict[v_id][cam]))
+
+            remaining = self.samples_per_class - len(samples)
+
+            if remaining > 0:
+                pool = []
+                for cam in cams:
+                    pool.extend(self.id_cam_dict[v_id][cam])
+                pool = list(set(pool) - set(samples))
+                if len(pool) < remaining:
+                    continue
+                samples.extend(random.sample(pool, remaining))
+            
+            batch.extend(samples)
+
+            if len(batch) == self.batch_size:
+                yield batch
+                batch = []
+
+        if len(batch) > 0 and not self.drop_last:
+            yield batch
+
+    def __len__(self):
+        return len(self.valid_ids) // self.ids_per_batch
+    
+
+class PKCrossCamSampler(Sampler):
+    def __init__(
+        self,
+        dataset,
+        batch_size,
+        samples_per_class,
+        num_batches,
+        min_cams_per_class=2,
+    ):
+        assert samples_per_class >= min_cams_per_class
+
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.samples_per_class = samples_per_class
+        self.min_cams = min_cams_per_class
+        self.num_batches = num_batches
+
+        self.p = batch_size // samples_per_class
+
+        # ---- build id -> cam -> indices ----
+        self.id_cam_dict = {}
+        df = dataset.df
+
+
+        for idx, row in df.iterrows():
+            v_id = dataset.class_idx[row[dataset.target_label]]
+            cam = dataset.cam_idx[row[dataset.cam_label]]
+
+            self.id_cam_dict.setdefault(v_id, {}) \
+                            .setdefault(cam, []) \
+                            .append(idx)
+
+        # ---- keep only valid IDs ----
+        self.valid_ids = [
+            v_id for v_id, cams in self.id_cam_dict.items()
+            if len(cams) >= min_cams_per_class
+        ]
+
+        if len(self.valid_ids) < self.p:
+            raise RuntimeError(
+                "Not enough IDs with required number of cameras to form a batch"
+            )
+
+    def __iter__(self):
+        while True:
+            random.shuffle(self.valid_ids)
+
+            for i in range(0, len(self.valid_ids), self.p):
+                selected_ids = self.valid_ids[i:i + self.p]
+                if len(selected_ids) < self.p:
+                    continue
+
+                batch = []
+
+                for v_id in selected_ids:
+                    cam_dict = self.id_cam_dict[v_id]
+                    cams = list(cam_dict.keys())
+
+                    # enforce cross-cam
+                    selected_cams = random.sample(cams, self.min_cams)
+
+                    samples = []
+
+                    # one sample per selected cam
+                    for cam in selected_cams:
+                        samples.append(random.choice(cam_dict[cam]))
+
+                    # fill remaining samples
+                    remaining = self.samples_per_class - len(samples)
+                    if remaining > 0:
+                        pool = [
+                            idx
+                            for cam in cams
+                            for idx in cam_dict[cam]
+                            if idx not in samples
+                        ]
+                        if len(pool) < remaining:
+                            break
+                        samples.extend(random.sample(pool, remaining))
+
+                    if len(samples) != self.samples_per_class:
+                        break
+
+                    batch.extend(samples)
+
+                if len(batch) == self.batch_size:
+                    yield batch
+
+    def __len__(self):
+        # epoch length is a training hyperparameter now
+        return self.num_batches
