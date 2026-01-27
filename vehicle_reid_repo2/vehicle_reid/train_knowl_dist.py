@@ -72,7 +72,7 @@ from circle_loss import CircleLoss, convert_label_to_similarity
 from instance_loss import InstanceLoss
 from load_model import load_model_from_opts
 from dataset import ImageDataset, ImageDatasetWCam, BatchSampler, CrossCamBatchSampler, PKCrossCamSampler
-from custom_losses import OpenWorldBatchLoss, CenterBasedEmbeddingLoss
+from custom_losses import OpenWorldBatchLoss, CenterBasedEmbeddingLoss, MarginCenterEmbeddingLoss
 
 
 ######################################################################
@@ -96,7 +96,7 @@ parser.add_argument('--gpu_ids', default='0', type=str,
 parser.add_argument('--tpu_cores', default=-1, type=int,
                     help="use TPU instead of GPU with the given number of cores (1 recommended if not too many cpus)")
 parser.add_argument('--num_workers', default=3, type=int) # Liekas, ka jasamazina worker skaits, ja batch lielaks par 64
-parser.add_argument('--warm_epoch', default=0, type=int, # te 3 parasti
+parser.add_argument('--warm_epoch', default=3, type=int, # te 3 parasti
                     help='the first K epoch that needs warm up (counted from start_epoch)')
 parser.add_argument('--total_epoch', default=20,
                     type=int, help='total training epoch')
@@ -118,7 +118,7 @@ parser.add_argument('--fp16', action='store_true',
 parser.add_argument("--grad_clip_max_norm", type=float, default=50.0,
                     help="maximum norm of gradient to be clipped to")
 
-parser.add_argument('--lr', default=0.05, #0.05 orig
+parser.add_argument('--lr', default=0.01, #0.05 orig
                     type=float, help='base learning rate for the head. 0.1 * lr is used for the backbone')
 parser.add_argument('--cosine', action='store_true',
                     help='use cosine learning rate')
@@ -134,7 +134,7 @@ parser.add_argument('--erasing_p', default=0.5, type=float,
 parser.add_argument('--color_jitter',default=True, action='store_true', # parasti nav
                     help='use color jitter in training')
 parser.add_argument("--label_smoothing", default=0.0, type=float)
-parser.add_argument("--samples_per_class", default=4, type=int,
+parser.add_argument("--samples_per_class", default=1, type=int,
                     help="Batch sampling strategy. Batches are sampled from groups of the same class with *this many* elements, if possible. Ordinary random sampling is achieved by setting this to 1.")
 parser.add_argument("--samples_per_camera", default=2, type=int,
                     help="Batch sampling strategy. Batches are sampled in a way that respects the minimum number of different cameras that an ID must have in batch.")
@@ -167,8 +167,10 @@ parser.add_argument('--lifted', action='store_true',
                     help='use lifted loss')
 parser.add_argument('--sphere', action='store_true',
                     help='use sphere loss')
-parser.add_argument('--center_based', default=True, action='store_true',
+parser.add_argument('--center_based', action='store_true',
                     help='use center based embedding loss for knowledge distillation')
+parser.add_argument('--center_margin', default=True, action='store_true',
+                    help='use center based embedding margin loss for knowledge distillation')
 
 parser.add_argument("--debug", action="store_true")
 parser.add_argument("--debug_period", type=int, default=100,
@@ -253,21 +255,24 @@ data_transforms = {
 image_datasets = {}
 train_df = pd.read_csv(opt.train_csv_path)
 val_df = pd.read_csv(opt.val_csv_path)
-all_ids = list(set(train_df["id"]).union(set(val_df["id"])))
+# all_ids = list(set(train_df["id"]).union(set(val_df["id"])))
+train_ids = list(set(train_df["id"]))
+val_ids = list(set(val_df["id"]))
 image_datasets["train"] = ImageDataset(
-    opt.data_dir, train_df, "id", classes=all_ids, transform=data_transforms["train"])
+    opt.data_dir, train_df, "id", classes=train_ids, transform=data_transforms["train"])
 # no-cam IDs included
 # image_datasets["val"] = ImageDataset(
 #     opt.data_dir, val_df, "id", classes=all_ids, transform=data_transforms["val"])
 # cam IDs included
 image_datasets["val"] = ImageDatasetWCam(
-    opt.data_dir, val_df, "id", classes=all_ids, transform=data_transforms["val"])
+    opt.data_dir, val_df, "id", classes=val_ids, transform=data_transforms["val"])
 
 
 dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
-class_names = image_datasets['train'].classes
-opt.nclasses = len(class_names)
-print("Number of classes in total: {}".format(opt.nclasses))
+train_class_names = image_datasets['train'].classes
+val_class_names = image_datasets['val'].classes
+opt.nclasses = len(train_class_names)
+print("Number of classes in train: {}".format(opt.nclasses))
 
 ######################################################################
 # Some Utilities for training
@@ -383,6 +388,11 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
             num_classes=opt.nclasses, embedding_size=512, margin=4).to(device)
     if opt.center_based:
         criterion_center_based = CenterBasedEmbeddingLoss(scale=32).to(device)
+    if opt.center_margin:
+        criterion_center_margin = MarginCenterEmbeddingLoss(
+            scale=32,
+            margin=0.2
+        ).to(device)
 
 
     train_sampler = BatchSampler(
@@ -399,6 +409,16 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
                                                 num_workers=num_workers,
                                                 pin_memory=use_gpu)
     }
+
+    center_loader = torch.utils.data.DataLoader(
+        image_datasets["train"],
+        batch_size=opt.batchsize,
+        shuffle=False,
+        drop_last=False,
+        num_workers=num_workers,
+        pin_memory=use_gpu
+    )
+
 
     ### DEBUG for Cam usage >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -422,17 +442,17 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
     # Computing class centers for knowledge distillation
     # ------------------------------------------------------
 
-    num_classes = opt.nclasses
+    num_train_classes = opt.nclasses
     feat_dim = opt.linear_num if opt.linear_num > 0 else 512
 
-    centers = torch.zeros(num_classes, feat_dim) ## Okey te gan es nevaru saprast vai tika pienemts ka visi ID ir 0 lidz N-1, nevis tie kas ir no csv
-    counts = torch.zeros(num_classes)
+    centers = torch.zeros(num_train_classes, feat_dim) ## Okey te gan es nevaru saprast vai tika pienemts ka visi ID ir 0 lidz N-1, nevis tie kas ir no csv
+    counts = torch.zeros(num_train_classes)
 
     with torch.no_grad():
-        for imgs, labels in tqdm.tqdm(dataloaders['train'], desc="Computing class centers"):
+        for imgs, labels in tqdm.tqdm(center_loader, desc="Computing class centers"):
 
             assert labels.min() >= 0
-            assert labels.max() < num_classes
+            assert labels.max() < num_train_classes
 
             imgs = imgs.to(device)
             labels = labels.to(device)
@@ -456,15 +476,27 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
         centers = centers.to(device)
         centers.requires_grad = False
 
-        assert centers.shape == (num_classes, feat_dim)
+        assert centers.shape == (num_train_classes, feat_dim)
         assert not centers.requires_grad
 
         ### DEBUG >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+        #Making sure every class has at least one sample ( centers will be NaN otherwise)
+        missing = (counts == 0).nonzero(as_tuple=True)[0]
+        if len(missing) > 0:
+            raise RuntimeError(
+                f"Missing centers for {len(missing)} classes. "
+                f"First few: {missing[:10].tolist()}"
+            )
+
         sim = centers @ centers.T
         print("Class centers similarity matrix statistics:")
         print(sim.mean().item(), sim.diag().mean().item()) # diag should be 1.0, mean should be low ~ 0.0
         ### <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+    ####################################################################
+    # Epoch loop
+    # ------------------------------------------------------
 
     mean_diff = 0
 
@@ -508,8 +540,8 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
             if return_feature:
                 logits, ff = outputs
 
-                #loss = 0.0
-                loss = criterion(logits, labels)
+                loss = 0.0
+                #loss = criterion(logits, labels)
                 
                 ff = F.normalize(ff, dim=1)
 
@@ -557,6 +589,8 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
                     loss += criterion_sphere(ff, labels) / now_batch_size
                 if opt.center_based:
                     loss += criterion_center_based(ff, labels, centers)
+                if opt.center_margin:
+                    loss += criterion_center_margin(ff, labels, centers)
 
                 
             else:
@@ -876,7 +910,7 @@ opts_file = "%s/opts.yaml" % dir_name
 with open(opts_file, 'w') as fp:
     yaml.dump(vars(opt), fp, default_flow_style=False)
 
-return_feature = opt.arcface or opt.cosface or opt.circle or opt.triplet or opt.contrast or opt.instance or opt.lifted or opt.sphere
+return_feature = opt.arcface or opt.cosface or opt.circle or opt.triplet or opt.contrast or opt.instance or opt.lifted or opt.sphere or opt.center_based or opt.center_margin
 
 student_model = load_model_from_opts(opts_file,
                              ckpt=opt.checkpoint if opt.checkpoint else None,

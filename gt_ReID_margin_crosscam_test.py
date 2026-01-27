@@ -297,8 +297,8 @@ if __name__ == "__main__":
         
     else:
         model = load_model_from_opts(
-            "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_sp4_ep6_ft_noCEL_070126/opts.yaml",
-            ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/main_sp4_ep6_ft_noCEL_070126/net_39.pth",
+            "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/student_model_knowl_dist/opts.yaml",
+            ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/student_model_knowl_dist/net_0.pth",
             remove_classifier=True,
         )
         model.eval()

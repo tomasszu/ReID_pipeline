@@ -74,3 +74,26 @@ class CenterBasedEmbeddingLoss(nn.Module):
         loss = F.cross_entropy(logits_centers, labels)
 
         return loss
+    
+class MarginCenterEmbeddingLoss(nn.Module):
+    def __init__(self, scale=32, margin=0.2):
+        super().__init__()
+        self.scale = scale
+        self.margin = margin
+
+    def forward(self, embeddings, labels, centers):
+        # embeddings: [B, D], normalized
+        # centers: [C, D], normalized
+
+        cosine = embeddings @ centers.t()  # [B, C]
+
+        one_hot = torch.zeros_like(cosine)
+        one_hot.scatter_(1, labels.view(-1, 1), 1.0)
+
+        # apply margin only to GT class
+        cosine_m = cosine - one_hot * self.margin
+
+        logits = self.scale * cosine_m
+        return F.cross_entropy(logits, labels)
+
+
