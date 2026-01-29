@@ -80,6 +80,10 @@ class MarginCenterEmbeddingLoss(nn.Module):
         super().__init__()
         self.scale = scale
         self.margin = margin
+        self.current_margin = 0.0  # <- start at 0
+
+    def set_margin(self, m):
+        self.current_margin = m
 
     def forward(self, embeddings, labels, centers):
         # embeddings: [B, D], normalized
@@ -91,7 +95,7 @@ class MarginCenterEmbeddingLoss(nn.Module):
         one_hot.scatter_(1, labels.view(-1, 1), 1.0)
 
         # apply margin only to GT class
-        cosine_m = cosine - one_hot * self.margin
+        cosine_m = cosine - one_hot * self.current_margin
 
         logits = self.scale * cosine_m
         return F.cross_entropy(logits, labels)

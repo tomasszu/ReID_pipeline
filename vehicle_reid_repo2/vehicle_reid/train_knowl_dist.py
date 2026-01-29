@@ -293,6 +293,81 @@ class DebugInfo:
             self.history = []
 
 
+def load_or_compute_centers(
+    center_loader,
+    teacher,
+    num_train_classes,
+    feat_dim,
+    device,
+    save_path,
+):
+    if os.path.exists(save_path):
+        print(f"[INFO] Loading class centers from {save_path}")
+        ckpt = torch.load(save_path, map_location="cpu")
+
+        centers = ckpt["centers"]
+        counts = ckpt.get("counts", None)
+
+        assert centers.shape == (num_train_classes, feat_dim), (
+            centers.shape, num_train_classes, feat_dim
+        )
+
+        centers = F.normalize(centers, dim=1)
+        centers = centers.to(device)
+        centers.requires_grad = False
+
+        return centers, counts
+
+    print("[INFO] Computing class centers from teacher model")
+
+    centers = torch.zeros(num_train_classes, feat_dim)
+    counts = torch.zeros(num_train_classes)
+
+    teacher.eval()
+    with torch.no_grad():
+        for imgs, labels in tqdm.tqdm(center_loader, desc="Computing class centers"):
+            assert labels.min() >= 0
+            assert labels.max() < num_train_classes
+
+            imgs = imgs.to(device)
+            labels = labels.to(device)
+
+            outputs = teacher(imgs)
+            feats = outputs[-1] if isinstance(outputs, (tuple, list)) else outputs
+            feats = F.normalize(feats, dim=1)
+
+            labels_cpu = labels.cpu()
+
+        centers.index_add_(0, labels_cpu, feats.cpu())
+        counts.index_add_(
+            0,
+            labels_cpu,
+            torch.ones_like(labels_cpu, dtype=counts.dtype),
+        )
+
+    # sanity: no empty classes
+    assert (counts > 0).all(), "Some classes have zero samples"
+
+    centers = centers / counts.unsqueeze(1)
+    centers = F.normalize(centers, dim=1)
+    centers.requires_grad = False
+
+    torch.save(
+        {
+            "centers": centers.cpu(),
+            "counts": counts.cpu(),
+            "num_classes": num_train_classes,
+            "feat_dim": feat_dim,
+        },
+        save_path,
+    )
+
+    print(f"[INFO] Saved class centers to {save_path}")
+
+    return centers.to(device), counts
+
+
+
 ######################################################################
 # Training the model
 # ------------------
@@ -393,6 +468,9 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
             scale=32,
             margin=0.2
         ).to(device)
+        criterion_margin_rampup_epochs = 15  # over how many epochs to reach the full margin
+        criterion_margin_step = criterion_center_margin.margin / criterion_margin_rampup_epochs
+
 
 
     train_sampler = BatchSampler(
@@ -445,54 +523,30 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
     num_train_classes = opt.nclasses
     feat_dim = opt.linear_num if opt.linear_num > 0 else 512
 
-    centers = torch.zeros(num_train_classes, feat_dim) ## Okey te gan es nevaru saprast vai tika pienemts ka visi ID ir 0 lidz N-1, nevis tie kas ir no csv
-    counts = torch.zeros(num_train_classes)
+    centers, counts = load_or_compute_centers(
+        center_loader=center_loader,
+        teacher=teacher,
+        num_train_classes=num_train_classes,
+        feat_dim=feat_dim,
+        device=device,
+        save_path="/home/toms.zinars/tomass/ReID_pipeline/embeddings/class_centers_teacher.pt",
+    )
 
-    with torch.no_grad():
-        for imgs, labels in tqdm.tqdm(center_loader, desc="Computing class centers"):
+    ### DEBUG >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-            assert labels.min() >= 0
-            assert labels.max() < num_train_classes
+    #Making sure every class has at least one sample ( centers will be NaN otherwise)
+    missing = (counts == 0).nonzero(as_tuple=True)[0]
+    if len(missing) > 0:
+        raise RuntimeError(
+            f"Missing centers for {len(missing)} classes. "
+            f"First few: {missing[:10].tolist()}"
+        )
+        
 
-            imgs = imgs.to(device)
-            labels = labels.to(device)
-
-            outputs = teacher(imgs)
-
-            if isinstance(outputs, (tuple, list)):
-                feats = outputs[-1]
-            else:
-                feats = outputs
-
-            feats = F.normalize(feats, dim=1)
-
-            for feat, label in zip(feats, labels):
-                centers[label] += feat.cpu()
-                counts[label] += 1
-
-        centers = centers / counts.unsqueeze(1)
-        centers = F.normalize(centers, dim=1)
-
-        centers = centers.to(device)
-        centers.requires_grad = False
-
-        assert centers.shape == (num_train_classes, feat_dim)
-        assert not centers.requires_grad
-
-        ### DEBUG >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-        #Making sure every class has at least one sample ( centers will be NaN otherwise)
-        missing = (counts == 0).nonzero(as_tuple=True)[0]
-        if len(missing) > 0:
-            raise RuntimeError(
-                f"Missing centers for {len(missing)} classes. "
-                f"First few: {missing[:10].tolist()}"
-            )
-
-        sim = centers @ centers.T
-        print("Class centers similarity matrix statistics:")
-        print(sim.mean().item(), sim.diag().mean().item()) # diag should be 1.0, mean should be low ~ 0.0
-        ### <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    sim = centers @ centers.T
+    print("Class centers similarity matrix statistics:")
+    print(sim.mean().item(), sim.diag().mean().item()) # diag should be 1.0, mean should be low ~ 0.0
+    ### <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     ####################################################################
     # Epoch loop
@@ -513,6 +567,9 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
 
         running_loss = torch.zeros(1).to(device)
         running_corrects = torch.zeros(1).to(device)
+
+        #DEBUG
+        print("Current criterion center margin:", criterion_center_margin.current_margin)
 
         if opt.debug:
             loss_debug = DebugInfo("loss", opt.debug_period)
@@ -591,6 +648,15 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
                     loss += criterion_center_based(ff, labels, centers)
                 if opt.center_margin:
                     loss += criterion_center_margin(ff, labels, centers)
+                    # ramp up the margin
+                    if criterion_margin_rampup_epochs > 0:
+                        new_margin = min(
+                            criterion_center_margin.margin,
+                            criterion_center_margin.current_margin + criterion_margin_step
+                        )
+                        criterion_center_margin.set_margin(new_margin)
+                    # Need to decrease the margin rampup epochs number at the end of epoch!!
+                    
 
                 
             else:
@@ -648,6 +714,8 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
 
         scheduler.step()
 
+        criterion_margin_rampup_epochs -= 1
+
 
         
         with open("vehicle_reid_repo2/vehicle_reid/automated_training/"+ opt.name +".txt", "a") as file:
@@ -664,7 +732,7 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
 
         if epoch == num_epochs - 1 or (epoch % (opt.save_freq) == (opt.save_freq - 1)):
             save_network(model, epoch)
-    #        draw_curve(epoch)
+            # draw_curve(epoch)
         
         #Šito aizkomentet pectam
         # print('{},{},{:.4f},{:.4f}\n'.format(
@@ -933,3 +1001,17 @@ model = train_model(
     student_model, criterion, start_epoch=opt.start_epoch, num_epochs=opt.total_epoch,
     num_workers=opt.num_workers, teacher=teacher_model
 )
+
+######################################################################
+# Train and evaluate
+# ---------------------------
+
+if version[0] > 1 or (version[0] == 1 and version[1] >= 10):
+    criterion = torch.nn.CrossEntropyLoss(
+        label_smoothing=opt.label_smoothing)
+else:
+    criterion = torch.nn.CrossEntropyLoss()
+
+model = train_model(
+    student_model, criterion, start_epoch=opt.start_epoch, num_epochs=opt.total_epoch,
+    num_workers=opt.num_workers, teacher=teacher_model)
