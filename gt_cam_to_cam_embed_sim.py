@@ -103,7 +103,7 @@ def load_embeddings(df, model):
         image = image.unsqueeze(0).to(device)
 
         with torch.no_grad():
-            _, emb = model(image) # [1, D]
+            emb = model(image) # [1, D]
 
         emb = emb.squeeze(0)  # [D]
 
@@ -336,10 +336,10 @@ if __name__ == "__main__":
         
     else:
         model = load_model_from_opts(
-            "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/student_model_knowl_dist_2/opts.yaml",
-            ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/student_model_knowl_dist_2/net_14.pth",
+            "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CE_triplet_no_batchnorm/opts.yaml",
+            ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CE_triplet_no_batchnorm/net_0.pth",
             remove_classifier=True,
-            return_feature=True)
+            return_pre_bn=True)
         model.eval()
         model.to(device)
 

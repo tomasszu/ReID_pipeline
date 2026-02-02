@@ -95,7 +95,7 @@ def load_model(n_classes, kind="resnet", ckpt=None, remove_classifier=False, **k
     return model
 
 
-def load_model_from_opts(opts_file, ckpt=None, return_feature=False, remove_classifier=False):
+def load_model_from_opts(opts_file, ckpt=None, return_feature=False, remove_classifier=False, batch_norm = True, return_pre_bn = False):
     """Loads a saved model by reading its opts.yaml file.
 
     Parameters
@@ -131,7 +131,7 @@ def load_model_from_opts(opts_file, ckpt=None, return_feature=False, remove_clas
     if model_type in ("resnet", "resnet_ibn"):
         model = create_model(n_classes, "resnet", droprate=droprate, ibn=(model_type == "resnet_ibn"),
                              stride=stride, circle=return_feature, linear_num=linear_num,
-                             model_subtype=model_subtype, mixstyle=mixstyle)
+                             model_subtype=model_subtype, mixstyle=mixstyle, batch_norm=batch_norm, return_pre_bn=return_pre_bn)
     elif model_type == "densenet":
         model = create_model(n_classes, "densenet", droprate=droprate, circle=return_feature,
                              linear_num=linear_num)

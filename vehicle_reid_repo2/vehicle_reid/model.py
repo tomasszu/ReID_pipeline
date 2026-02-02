@@ -33,9 +33,10 @@ def weights_init_classifier(m):
 # Defines the new fc layer and classification layer
 # |--Linear--|--bn--|--relu--|--Linear--|
 class ClassBlock(nn.Module):
-    def __init__(self, input_dim, class_num, droprate, relu=False, bnorm=True, linear=512, return_f=False):
+    def __init__(self, input_dim, class_num, droprate, relu=False, bnorm=True, linear=512, return_f=False, return_pre_bn=False):
         super(ClassBlock, self).__init__()
         self.return_f = return_f
+        self.return_pre_bn = return_pre_bn
         add_block = []
         if linear > 0:
             add_block += [nn.Linear(input_dim, linear)]
@@ -59,8 +60,13 @@ class ClassBlock(nn.Module):
         self.classifier = classifier
 
     def forward(self, x):
+        xpb = self.add_block[0](x)
         x = self.add_block(x)
         if self.return_f:
+            if self.return_pre_bn:
+                f = xpb
+                x = self.classifier(x)
+                return [x, f]
             f = x
             x = self.classifier(x)
             return [x, f]
@@ -72,7 +78,7 @@ class ClassBlock(nn.Module):
 class ft_net(nn.Module):
 
     def __init__(self, class_num=751, device="cuda", droprate=0.5, stride=2, circle=False, ibn=False, linear_num=512,
-                 model_subtype="50", mixstyle=True):
+                 model_subtype="50", mixstyle=True, batch_norm=True, return_pre_bn=False):
         super(ft_net, self).__init__()
         if model_subtype in ("50", "default"):
             if ibn:
@@ -102,7 +108,7 @@ class ft_net(nn.Module):
         self.model = model_ft
         self.circle = circle
         self.classifier = ClassBlock(
-            2048, class_num, droprate, linear=linear_num, return_f=circle)
+            2048, class_num, droprate, bnorm=batch_norm, linear=linear_num, return_f=circle, return_pre_bn=return_pre_bn)
         self.mixstyle = MixStyle(alpha=0.3) if mixstyle else None
 
     def forward(self, x):

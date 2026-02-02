@@ -120,8 +120,8 @@ def main():
                                         gt_path = f"/home/tomass/tomass/data/AIC22_Track1_MTMC_Tracking(1)/train/S01/c00{i}/gt/gt.txt",
                                         cam_id = f"S01c00{i}",
                                         split = "train",
-                                        model_opts_path="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/student_model_knowl_dist_2/opts.yaml",
-                                        model_ckpt_path="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/student_model_knowl_dist_2/net_1.pth")
+                                        model_opts_path="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/student_model_knowl_dist_1.2.1/opts.yaml",
+                                        model_ckpt_path="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/student_model_knowl_dist_1.2.1/net_25.pth")
                                         
         embedder.save_dict_to_db(db)
         # except:

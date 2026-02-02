@@ -134,11 +134,11 @@ parser.add_argument('--erasing_p', default=0.5, type=float,
 parser.add_argument('--color_jitter',default=True, action='store_true', # parasti nav
                     help='use color jitter in training')
 parser.add_argument("--label_smoothing", default=0.0, type=float)
-parser.add_argument("--samples_per_class", default=1, type=int,
+parser.add_argument("--samples_per_class", default=4, type=int,
                     help="Batch sampling strategy. Batches are sampled from groups of the same class with *this many* elements, if possible. Ordinary random sampling is achieved by setting this to 1.")
 parser.add_argument("--samples_per_camera", default=2, type=int,
                     help="Batch sampling strategy. Batches are sampled in a way that respects the minimum number of different cameras that an ID must have in batch.")
-parser.add_argument("--batches_per_epoch_num", default=1500, type=int,
+parser.add_argument("--batches_per_epoch_num", default=715, type=int,
                     help="Number of baches per epoch to run if batches are constructed by PK_batcher and are randomised.")
 
 parser.add_argument("--model", default="resnet_ibn",
@@ -256,9 +256,9 @@ image_datasets = {}
 train_df = pd.read_csv(opt.train_csv_path)
 val_df = pd.read_csv(opt.val_csv_path)
 # all_ids = list(set(train_df["id"]).union(set(val_df["id"])))
-train_ids = list(set(train_df["id"]))
-val_ids = list(set(val_df["id"]))
-image_datasets["train"] = ImageDataset(
+train_ids = sorted(set(train_df["id"]))
+val_ids = sorted(set(val_df["id"]))
+image_datasets["train"] = ImageDatasetWCam(
     opt.data_dir, train_df, "id", classes=train_ids, transform=data_transforms["train"])
 # no-cam IDs included
 # image_datasets["val"] = ImageDataset(
@@ -266,6 +266,8 @@ image_datasets["train"] = ImageDataset(
 # cam IDs included
 image_datasets["val"] = ImageDatasetWCam(
     opt.data_dir, val_df, "id", classes=val_ids, transform=data_transforms["val"])
+image_datasets["center"] = ImageDataset(
+    opt.data_dir, train_df, "id", classes=train_ids, transform=data_transforms["train"])
 
 
 dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
@@ -320,36 +322,33 @@ def load_or_compute_centers(
 
     print("[INFO] Computing class centers from teacher model")
 
-    centers = torch.zeros(num_train_classes, feat_dim)
-    counts = torch.zeros(num_train_classes)
+    centers = torch.zeros(num_train_classes, feat_dim, device=device)
+    counts  = torch.zeros(num_train_classes, device=device)
 
-    teacher.eval()
     with torch.no_grad():
         for imgs, labels in tqdm.tqdm(center_loader, desc="Computing class centers"):
-            assert labels.min() >= 0
-            assert labels.max() < num_train_classes
 
             imgs = imgs.to(device)
             labels = labels.to(device)
 
-            outputs = teacher(imgs)
-            feats = outputs[-1] if isinstance(outputs, (tuple, list)) else outputs
+            feats = teacher(imgs)
+            if isinstance(feats, (tuple, list)):
+                feats = feats[-1]
+
             feats = F.normalize(feats, dim=1)
 
-            labels_cpu = labels.cpu()
+            centers.index_add_(0, labels, feats)
+            counts.index_add_(0, labels, torch.ones_like(labels, dtype=counts.dtype))
 
-        centers.index_add_(0, labels_cpu, feats.cpu())
-        counts.index_add_(
-            0,
-            labels_cpu,
-            torch.ones_like(labels_cpu, dtype=counts.dtype),
-        )
+    print("Min instance count per class:", counts.min().item())
+    print("Zero-count classes:", (counts == 0).sum().item())
 
-    # sanity: no empty classes
+    # sanity check BEFORE division
     assert (counts > 0).all(), "Some classes have zero samples"
 
     centers = centers / counts.unsqueeze(1)
     centers = F.normalize(centers, dim=1)
+
     centers.requires_grad = False
 
     torch.save(
@@ -466,15 +465,16 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
     if opt.center_margin:
         criterion_center_margin = MarginCenterEmbeddingLoss(
             scale=32,
-            margin=0.2
+            margin=0.3,
+            current_margin=0.2
         ).to(device)
-        criterion_margin_rampup_epochs = 15  # over how many epochs to reach the full margin
-        criterion_margin_step = criterion_center_margin.margin / criterion_margin_rampup_epochs
+        criterion_margin_rampup_epochs = 10  # over how many epochs to reach the full margin
+        criterion_margin_step = (criterion_center_margin.margin - criterion_center_margin.current_margin) / criterion_margin_rampup_epochs
 
 
 
-    train_sampler = BatchSampler(
-        image_datasets["train"], opt.batchsize, opt.samples_per_class)
+    train_sampler = PKCrossCamSampler(
+        image_datasets["train"], opt.batchsize, opt.samples_per_class, num_batches=num_batches, min_cams_per_class=cams_per_id)
 
     dataloaders = {
         "val": torch.utils.data.DataLoader(image_datasets["val"],
@@ -489,13 +489,24 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
     }
 
     center_loader = torch.utils.data.DataLoader(
-        image_datasets["train"],
+        image_datasets["center"],
         batch_size=opt.batchsize,
         shuffle=False,
         drop_last=False,
         num_workers=num_workers,
         pin_memory=use_gpu
     )
+
+    ### DEBUG to see if any class indices are missing >>>>>>>>>>>>>>>>>>
+
+    # seen = torch.zeros(opt.nclasses, dtype=torch.long)
+    # for _, labels in center_loader:
+    #     seen.index_add_(0, labels, torch.ones_like(labels))
+
+    # missing = (seen == 0).nonzero(as_tuple=True)[0]
+
+    # print("Missing class indices:", missing[:20])
+    # print("Num missing:", len(missing))
 
 
     ### DEBUG for Cam usage >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -529,7 +540,7 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
         num_train_classes=num_train_classes,
         feat_dim=feat_dim,
         device=device,
-        save_path="/home/toms.zinars/tomass/ReID_pipeline/embeddings/class_centers_teacher.pt",
+        save_path="/home/toms.zinars/tomass/ReID_pipeline/embeddings/class_centers_student1.pt",
     )
 
     ### DEBUG >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -576,9 +587,9 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
             grad_debug = DebugInfo("grad", opt.debug_period)
 
         for batch_idx, data in enumerate(loader):
-            if batch_idx >= num_batches:
+            if num_batches and batch_idx >= num_batches:
                 break
-            inputs, labels = data
+            inputs, labels, _ = data
             now_batch_size = inputs.shape[0]
 
             if use_gpu:
@@ -597,8 +608,8 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
             if return_feature:
                 logits, ff = outputs
 
-                loss = 0.0
-                #loss = criterion(logits, labels)
+                #loss = 0.0
+                loss = criterion(logits, labels)
                 
                 ff = F.normalize(ff, dim=1)
 
@@ -647,15 +658,9 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
                 if opt.center_based:
                     loss += criterion_center_based(ff, labels, centers)
                 if opt.center_margin:
-                    loss += criterion_center_margin(ff, labels, centers)
-                    # ramp up the margin
-                    if criterion_margin_rampup_epochs > 0:
-                        new_margin = min(
-                            criterion_center_margin.margin,
-                            criterion_center_margin.current_margin + criterion_margin_step
-                        )
-                        criterion_center_margin.set_margin(new_margin)
-                    # Need to decrease the margin rampup epochs number at the end of epoch!!
+                    lambda_center= 1
+                    loss += lambda_center * criterion_center_margin(ff, labels, centers)
+                    #Need to decrease the margin rampup epochs number at the end of epoch!!
                     
 
                 
@@ -702,7 +707,10 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
             if not return_feature:
                 running_corrects += float(torch.sum(preds == labels.data))
 
-        mean_diff = mean_diff / num_batches
+        if not num_batches:
+            mean_diff = mean_diff * opt.batchsize / dataset_sizes['train']
+        else:
+            mean_diff = mean_diff / num_batches
         epoch_loss = running_loss.cpu() / dataset_sizes['train']
         if return_feature:
             print('{} Loss: {:.4f} Mean_diff: {:.4f}'.format(
@@ -714,7 +722,17 @@ def train_model(model, criterion, teacher, start_epoch=0, num_epochs=25, num_wor
 
         scheduler.step()
 
-        criterion_margin_rampup_epochs -= 1
+        # Class center criterion margin ramp-up >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        if opt.center_margin:
+            criterion_margin_rampup_epochs -= 1
+            if criterion_margin_rampup_epochs > 0:
+                new_margin = min(
+                    criterion_center_margin.margin,
+                    criterion_center_margin.current_margin + criterion_margin_step
+                )
+                criterion_center_margin.set_margin(new_margin)
+                print(f"New criterion center margin: ",new_margin)
+        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
         
@@ -945,9 +963,9 @@ def save_network(network, epoch_label):
 # Load Teacher Model
 # ---------------------------
 
-teach_dir = os.path.join(SCRIPT_DIR, "model", "base_CE_teacher")
+teach_dir = os.path.join(SCRIPT_DIR, "model", "student_model_knowl_dist")
 teach_opts_file = "%s/opts.yaml" % teach_dir
-teach_epoch = 15
+teach_epoch = 25
 teach_checkpoint = os.path.join(teach_dir, f"net_{teach_epoch}.pth")  # or net_best.pth
 
 return_teach_feature = True
@@ -1001,17 +1019,3 @@ model = train_model(
     student_model, criterion, start_epoch=opt.start_epoch, num_epochs=opt.total_epoch,
     num_workers=opt.num_workers, teacher=teacher_model
 )
-
-######################################################################
-# Train and evaluate
-# ---------------------------
-
-if version[0] > 1 or (version[0] == 1 and version[1] >= 10):
-    criterion = torch.nn.CrossEntropyLoss(
-        label_smoothing=opt.label_smoothing)
-else:
-    criterion = torch.nn.CrossEntropyLoss()
-
-model = train_model(
-    student_model, criterion, start_epoch=opt.start_epoch, num_epochs=opt.total_epoch,
-    num_workers=opt.num_workers, teacher=teacher_model)
