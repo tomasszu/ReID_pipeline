@@ -73,6 +73,23 @@ class ClassBlock(nn.Module):
         else:
             x = self.classifier(x)
             return x
+        
+class LinearBlock(nn.Module):
+    def __init__(self, input_dim, linear=512):
+        super(LinearBlock, self).__init__()
+        add_block = []
+        if linear > 0:
+            add_block += [nn.Linear(input_dim, linear)]
+        else:
+            linear = input_dim
+        add_block = nn.Sequential(*add_block)
+        add_block.apply(weights_init_kaiming)
+
+        self.add_block = add_block
+
+    def forward(self, x):
+        ff = self.add_block(x)
+        return ff
 
 # Define the ResNet50-based Model
 class ft_net(nn.Module):
@@ -128,6 +145,73 @@ class ft_net(nn.Module):
         x = x.view(x.size(0), x.size(1))
         x = self.classifier(x)
         return x
+    
+class ft_net2(nn.Module):
+
+    """
+    this version of the ft class splits the head part into 2 separate directions for metric and classifier learning
+    """
+
+    def __init__(self, class_num=751, device="cuda", droprate=0.5, stride=2, circle=False, ibn=False, linear_num=512,
+                 model_subtype="50", mixstyle=True, batch_norm=True, return_pre_bn=False):
+        super(ft_net2, self).__init__()
+        if model_subtype in ("50", "default"):
+            if ibn:
+                model_ft = torch.hub.load(
+                    'XingangPan/IBN-Net', 'resnet50_ibn_a', pretrained=True)
+                #print("PRINT ",device)
+                #model_ft = model_ft.to(torch.device(""device""))
+            else:
+                model_ft = models.resnet50(weights="IMAGENET1K_V2")
+        elif model_subtype == "101":
+            if ibn:
+                model_ft = torch.hub.load("XingangPan/IBN-Net", "resnet101_ibn_a", pretrained=True)
+            else:
+                model_ft = models.resnet101(weights="IMAGENET1K_V2")
+        elif model_subtype == "152":
+            if ibn:
+                raise ValueError("Resnet152 has no IBN variants available.")
+            model_ft = models.resnet152(weights="IMAGENET1K_V2")
+        else:
+            raise ValueError(f"Resnet model subtype: {model_subtype} is invalid, choose from: ['50','101','152'].")
+        
+        # avg pooling to global pooling
+        if stride == 1:
+            model_ft.layer4[0].downsample[0].stride = (1, 1)
+            model_ft.layer4[0].conv2.stride = (1, 1)
+        model_ft.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.model = model_ft
+        self.circle = circle
+        self.classifier = ClassBlock(
+            2048, class_num, droprate, bnorm=batch_norm, linear=linear_num)
+        self.last_layer = LinearBlock(2048, linear=linear_num)
+        self.mixstyle = MixStyle(alpha=0.3) if mixstyle else None
+
+    def forward(self, x):
+        x = self.model.conv1(x)
+        x = self.model.bn1(x)
+        x = self.model.relu(x)
+        x = self.model.maxpool(x)
+        x = self.model.layer1(x)
+        if self.training and self.mixstyle:
+            x = self.mixstyle(x)
+        x = self.model.layer2(x)
+        if self.training and self.mixstyle:
+            x = self.mixstyle(x)
+        x = self.model.layer3(x)
+        x = self.model.layer4(x)
+        x = self.model.avgpool(x)
+        x = x.view(x.size(0), x.size(1))
+        if self.training and self.circle:
+            ff = self.last_layer(x)
+            x = self.classifier(x)
+            return [x, ff]
+        elif not self.training:
+            ff = self.last_layer(x)
+            return ff
+        else:
+            x = self.classifier(x)
+            return x
     
 # Define the classification head from the originally ResNet50-based Model
 class ft_net_head(nn.Module):

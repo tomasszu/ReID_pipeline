@@ -336,8 +336,8 @@ if __name__ == "__main__":
         
     else:
         model = load_model_from_opts(
-            "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CE_triplet_no_batchnorm/opts.yaml",
-            ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CE_triplet_no_batchnorm/net_0.pth",
+            "/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CE_triplet_split_head/opts.yaml",
+            ckpt="/home/tomass/tomass/ReID_pipele/vehicle_reid_repo2/vehicle_reid/model/CE_triplet_split_head/net_30.pth",
             remove_classifier=True,
             return_pre_bn=True)
         model.eval()
