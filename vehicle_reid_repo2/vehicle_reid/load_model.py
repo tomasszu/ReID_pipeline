@@ -7,7 +7,7 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(SCRIPT_DIR)
 
-from model import ft_net, ft_net2, ft_net_dense, ft_net_hr, ft_net_swin, ft_net_efficient, ft_net_NAS, PCB, MLP, clip_reid_net
+from model import ft_net, ft_net2, ft_net3, ft_net_dense, ft_net_hr, ft_net_swin, ft_net_efficient, ft_net_NAS, PCB, MLP, clip_reid_net
 
 sys.path.remove(SCRIPT_DIR)
 
@@ -40,7 +40,7 @@ def load_weights(model, ckpt_path, remove_classifier=False):
 def create_model(n_classes, kind="resnet", **kwargs):
     """Creates a model of a given kind and number of classes"""
     if kind == "resnet":
-        return ft_net2(n_classes, **kwargs)
+        return ft_net3(n_classes, **kwargs)
     elif kind == "densenet":
         return ft_net_dense(n_classes, **kwargs)
     elif kind == "hr":

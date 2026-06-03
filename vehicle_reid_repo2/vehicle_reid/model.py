@@ -90,6 +90,54 @@ class LinearBlock(nn.Module):
     def forward(self, x):
         ff = self.add_block(x)
         return ff
+    
+        
+class TwoClassBlock(nn.Module):
+    def __init__(self, input_dim, class_num, cam_num, droprate, relu=False, bnorm=True, linear=512, return_f=False, return_pre_bn=False):
+        super(TwoClassBlock, self).__init__()
+        self.return_f = return_f
+        self.return_pre_bn = return_pre_bn
+        add_block = []
+        if linear > 0:
+            add_block += [nn.Linear(input_dim, linear)]
+        else:
+            linear = input_dim
+        if bnorm:
+            add_block += [nn.BatchNorm1d(linear)]
+        if relu:
+            add_block += [nn.LeakyReLU(0.1)]
+        if droprate > 0:
+            add_block += [nn.Dropout(p=droprate)]
+        add_block = nn.Sequential(*add_block)
+        add_block.apply(weights_init_kaiming)
+
+        classifier = []
+        classifier += [nn.Linear(linear, class_num)]
+        classifier += [nn.Linear(linear, cam_num)]
+        classifier = nn.Sequential(*classifier)
+        classifier.apply(weights_init_classifier)
+
+        self.add_block = add_block
+        self.classifier = classifier
+
+    def forward(self, x):
+        xpb = self.add_block[0](x)
+        x = self.add_block(x)
+        if self.return_f:
+            if self.return_pre_bn:
+                f = xpb
+                x_class = self.classifier[0](x)
+                x_cam = self.classifier[1](x)
+                return [x_class, x_cam, f]
+            f = x
+            x_class = self.classifier[0](x)
+            x_cam = self.classifier[1](x)
+            return [x_class, x_cam, f]
+        else:
+            #x_class = self.classifier[0](x)
+            #x_cam = self.classifier[1](x)
+            # return [x_class, x_cam]
+            return x
 
 # Define the ResNet50-based Model
 class ft_net(nn.Module):
@@ -212,6 +260,65 @@ class ft_net2(nn.Module):
         else:
             x = self.classifier(x)
             return x
+        
+# Define the ResNet50-based Model
+class ft_net3(nn.Module):
+
+    """
+    Thsi version of the model class will have one classification layer for the class logits and another one for camera logits
+    """
+
+    def __init__(self, class_num=751, cam_num=40, device="cuda", droprate=0.5, stride=2, circle=False, ibn=False, linear_num=512,
+                 model_subtype="50", mixstyle=True, batch_norm=True, return_pre_bn=False):
+        super(ft_net3, self).__init__()
+        if model_subtype in ("50", "default"):
+            if ibn:
+                model_ft = torch.hub.load(
+                    'XingangPan/IBN-Net', 'resnet50_ibn_a', pretrained=True)
+                #print("PRINT ",device)
+                #model_ft = model_ft.to(torch.device(""device""))
+            else:
+                model_ft = models.resnet50(weights="IMAGENET1K_V2")
+        elif model_subtype == "101":
+            if ibn:
+                model_ft = torch.hub.load("XingangPan/IBN-Net", "resnet101_ibn_a", pretrained=True)
+            else:
+                model_ft = models.resnet101(weights="IMAGENET1K_V2")
+        elif model_subtype == "152":
+            if ibn:
+                raise ValueError("Resnet152 has no IBN variants available.")
+            model_ft = models.resnet152(weights="IMAGENET1K_V2")
+        else:
+            raise ValueError(f"Resnet model subtype: {model_subtype} is invalid, choose from: ['50','101','152'].")
+        
+        # avg pooling to global pooling
+        if stride == 1:
+            model_ft.layer4[0].downsample[0].stride = (1, 1)
+            model_ft.layer4[0].conv2.stride = (1, 1)
+        model_ft.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.model = model_ft
+        self.circle = circle
+        self.classifier = TwoClassBlock(
+            2048, class_num, cam_num, droprate, bnorm=batch_norm, linear=linear_num, return_f=circle, return_pre_bn=return_pre_bn)
+        self.mixstyle = MixStyle(alpha=0.3) if mixstyle else None
+
+    def forward(self, x):
+        x = self.model.conv1(x)
+        x = self.model.bn1(x)
+        x = self.model.relu(x)
+        x = self.model.maxpool(x)
+        x = self.model.layer1(x)
+        if self.training and self.mixstyle:
+            x = self.mixstyle(x)
+        x = self.model.layer2(x)
+        if self.training and self.mixstyle:
+            x = self.mixstyle(x)
+        x = self.model.layer3(x)
+        x = self.model.layer4(x)
+        x = self.model.avgpool(x)
+        x = x.view(x.size(0), x.size(1))
+        x = self.classifier(x)
+        return x
     
 # Define the classification head from the originally ResNet50-based Model
 class ft_net_head(nn.Module):
